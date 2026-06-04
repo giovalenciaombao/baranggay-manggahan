@@ -165,7 +165,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import {
   MagnifyingGlassIcon,
@@ -174,13 +174,16 @@ import {
   CheckIcon,
   XMarkIcon,
 } from '@heroicons/vue/24/outline'
+import api from '@/services/api'
 import AppBadge from '@/components/common/AppBadge.vue'
 
 const toast        = useToast()
 const activeFilter = ref('all')
 const search       = ref('')
+const loading      = ref(true)
 const showModal    = ref(false)
 const selectedItem = ref(null)
+const appointments = ref([])
 
 const statusMap = {
   pending:   { variant: 'warning', label: 'Pending'   },
@@ -188,49 +191,6 @@ const statusMap = {
   cancelled: { variant: 'danger',  label: 'Cancelled' },
   completed: { variant: 'default', label: 'Completed' },
 }
-
-const appointments = ref([
-  {
-    id: 1,
-    resident: 'Juan dela Cruz',
-    purpose: 'Barangay ID Renewal',
-    date: 'June 10, 2026',
-    time: '9:00 AM',
-    notes: 'Please bring 1 valid ID.',
-    statusKey: 'pending',
-  },
-  {
-    id: 2,
-    resident: 'Maria Santos',
-    purpose: 'Certificate of Residency',
-    date: 'June 15, 2026',
-    time: '2:00 PM',
-    notes: 'For employment purposes.',
-    statusKey: 'approved',
-  },
-  {
-    id: 3,
-    resident: 'Pedro Reyes',
-    purpose: 'Barangay Clearance',
-    date: 'June 12, 2026',
-    time: '10:00 AM',
-    notes: '',
-    statusKey: 'completed',
-  },
-  {
-    id: 4,
-    resident: 'Ana Villanueva',
-    purpose: 'Certificate of Indigency',
-    date: 'June 8, 2026',
-    time: '1:00 PM',
-    notes: 'For scholarship application.',
-    statusKey: 'cancelled',
-  },
-])
-
-const appointmentsWithStatus = computed(() =>
-  appointments.value.map(a => ({ ...a, status: statusMap[a.statusKey] }))
-)
 
 const filters = [
   { label: 'All',       value: 'all'       },
@@ -240,8 +200,17 @@ const filters = [
   { label: 'Cancelled', value: 'cancelled' },
 ]
 
+const appointmentsWithMeta = computed(() =>
+  appointments.value.map(a => ({
+    ...a,
+    statusKey: a.status,
+    resident:  a.user ? `${a.user.first_name} ${a.user.last_name}` : '—',
+    status:    statusMap[a.status] ?? { variant: 'default', label: a.status },
+  }))
+)
+
 const filtered = computed(() => {
-  let list = appointmentsWithStatus.value
+  let list = appointmentsWithMeta.value
   if (activeFilter.value !== 'all') {
     list = list.filter(a => a.statusKey === activeFilter.value)
   }
@@ -255,9 +224,25 @@ const filtered = computed(() => {
   return list
 })
 
-function updateStatus(item, newStatus) {
-  item.statusKey = newStatus
-  item.status    = statusMap[newStatus]
-  toast.success('Appointment status updated!')
+async function updateStatus(item, newStatus) {
+  try {
+    await api.put(`/appointments/${item.id}`, { status: newStatus })
+    const original = appointments.value.find(a => a.id === item.id)
+    if (original) original.status = newStatus
+    item.statusKey = newStatus
+    item.status    = statusMap[newStatus]
+    toast.success('Appointment status updated!')
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Failed to update status.')
+  }
 }
+
+onMounted(async () => {
+  try {
+    const { data } = await api.get('/admin/appointments')
+    appointments.value = data.appointments
+  } finally {
+    loading.value = false
+  }
+})
 </script>

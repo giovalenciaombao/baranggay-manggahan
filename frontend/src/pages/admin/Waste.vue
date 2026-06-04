@@ -105,18 +105,20 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import {
   MagnifyingGlassIcon,
   TrashIcon,
-  CalendarDaysIcon,
 } from '@heroicons/vue/24/outline'
+import api from '@/services/api'
 import AppBadge from '@/components/common/AppBadge.vue'
 
 const toast        = useToast()
 const activeFilter = ref('all')
 const search       = ref('')
+const loading      = ref(true)
+const waste        = ref([])
 
 const statusMap = {
   pending:   { variant: 'warning', label: 'Pending'   },
@@ -126,35 +128,12 @@ const statusMap = {
 }
 
 const typeConfig = {
-  'Biodegradable':     { iconBg: 'bg-green-50', iconColor: 'text-green-600' },
-  'Non-Biodegradable': { iconBg: 'bg-blue-50',  iconColor: 'text-blue-500'  },
-  'Residual':          { iconBg: 'bg-gray-50',  iconColor: 'text-gray-500'  },
-  'Hazardous':         { iconBg: 'bg-red-50',   iconColor: 'text-red-500'   },
-  'Bulk / Large Items':{ iconBg: 'bg-yellow-50',iconColor: 'text-yellow-500'},
+  'Biodegradable':      { iconBg: 'bg-green-50',  iconColor: 'text-green-600' },
+  'Non-Biodegradable':  { iconBg: 'bg-blue-50',   iconColor: 'text-blue-500'  },
+  'Residual':           { iconBg: 'bg-gray-50',   iconColor: 'text-gray-500'  },
+  'Hazardous':          { iconBg: 'bg-red-50',    iconColor: 'text-red-500'   },
+  'Bulk / Large Items': { iconBg: 'bg-yellow-50', iconColor: 'text-yellow-500'},
 }
-
-const records = ref([
-  { id: 1, resident: 'Juan dela Cruz',  type: 'Biodegradable',     date: 'June 5, 2026',  notes: '',                       statusKey: 'pending'   },
-  { id: 2, resident: 'Maria Santos',    type: 'Non-Biodegradable', date: 'June 5, 2026',  notes: '',                       statusKey: 'scheduled' },
-  { id: 3, resident: 'Pedro Reyes',     type: 'Bulk / Large Items',date: 'June 4, 2026',  notes: 'Old refrigerator.',      statusKey: 'pending'   },
-  { id: 4, resident: 'Ana Villanueva',  type: 'Residual',          date: 'June 3, 2026',  notes: '',                       statusKey: 'collected' },
-  { id: 5, resident: 'Jose Mercado',    type: 'Hazardous',         date: 'June 2, 2026',  notes: 'Old paint cans.',        statusKey: 'missed'    },
-])
-
-const recordsWithConfig = computed(() =>
-  records.value.map(r => ({
-    ...r,
-    status: statusMap[r.statusKey],
-    ...(typeConfig[r.type] ?? { iconBg: 'bg-gray-50', iconColor: 'text-gray-500' }),
-  }))
-)
-
-const stats = computed(() => [
-  { label: 'Total Requests', value: records.value.length },
-  { label: 'Pending',        value: records.value.filter(r => r.statusKey === 'pending').length   },
-  { label: 'Collected',      value: records.value.filter(r => r.statusKey === 'collected').length },
-  { label: 'Missed',         value: records.value.filter(r => r.statusKey === 'missed').length    },
-])
 
 const filters = [
   { label: 'All',       value: 'all'       },
@@ -164,25 +143,63 @@ const filters = [
   { label: 'Missed',    value: 'missed'    },
 ]
 
+const wasteWithMeta = computed(() =>
+  waste.value.map(w => ({
+    ...w,
+    statusKey: w.status,
+    resident:  w.user ? `${w.user.first_name} ${w.user.last_name}` : '—',
+    status:    statusMap[w.status] ?? { variant: 'default', label: w.status },
+    ...(typeConfig[w.type] ?? { iconBg: 'bg-gray-50', iconColor: 'text-gray-500' }),
+    date: new Date(w.date).toLocaleDateString('en-PH', {
+      year: 'numeric', month: 'long', day: 'numeric'
+    }),
+  }))
+)
+
 const filtered = computed(() => {
-  let list = recordsWithConfig.value
+  let list = wasteWithMeta.value
   if (activeFilter.value !== 'all') {
-    list = list.filter(r => r.statusKey === activeFilter.value)
+    list = list.filter(w => w.statusKey === activeFilter.value)
   }
   if (search.value.trim()) {
     const q = search.value.toLowerCase()
-    list = list.filter(r => r.resident.toLowerCase().includes(q))
+    list = list.filter(w =>
+      w.resident.toLowerCase().includes(q) ||
+      w.type.toLowerCase().includes(q)
+    )
   }
   return list
 })
 
-function updateStatus(item) {
-  item.status = statusMap[item.statusKey]
-  toast.success('Status updated!')
+async function updateStatus(item, newStatus) {
+  try {
+    await api.put(`/waste/${item.id}`, { status: newStatus })
+    const original = waste.value.find(w => w.id === item.id)
+    if (original) original.status = newStatus
+    item.statusKey = newStatus
+    item.status    = statusMap[newStatus]
+    toast.success('Waste request status updated!')
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Failed to update status.')
+  }
 }
 
-function deleteRecord(id) {
-  records.value = records.value.filter(r => r.id !== id)
-  toast.success('Record deleted.')
+async function deleteRequest(id) {
+  try {
+    await api.delete(`/waste/${id}`)
+    waste.value = waste.value.filter(w => w.id !== id)
+    toast.success('Record deleted.')
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Failed to delete.')
+  }
 }
+
+onMounted(async () => {
+  try {
+    const { data } = await api.get('/admin/waste')
+    waste.value = data.waste_requests
+  } finally {
+    loading.value = false
+  }
+})
 </script>

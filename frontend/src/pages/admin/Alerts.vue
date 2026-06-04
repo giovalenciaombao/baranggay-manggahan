@@ -151,7 +151,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import {
   PlusIcon,
@@ -162,6 +162,7 @@ import {
   MegaphoneIcon,
   WrenchScrewdriverIcon,
 } from '@heroicons/vue/24/outline'
+import api from '@/services/api'
 import AppButton from '@/components/common/AppButton.vue'
 import AppBadge from '@/components/common/AppBadge.vue'
 import AppInput from '@/components/common/AppInput.vue'
@@ -171,40 +172,14 @@ const activeFilter = ref('all')
 const showModal    = ref(false)
 const editingId    = ref(null)
 const loading      = ref(false)
+const fetching     = ref(true)
+const alerts       = ref([])
 
 const typeConfig = {
   emergency:    { icon: ExclamationTriangleIcon, iconBg: 'bg-red-50',    iconColor: 'text-red-500',    borderColor: 'border-red-400',    badge: { variant: 'danger',  label: 'Emergency'    } },
   announcement: { icon: MegaphoneIcon,           iconBg: 'bg-green-50',  iconColor: 'text-green-600',  borderColor: 'border-green-400',  badge: { variant: 'success', label: 'Announcement' } },
   maintenance:  { icon: WrenchScrewdriverIcon,   iconBg: 'bg-yellow-50', iconColor: 'text-yellow-500', borderColor: 'border-yellow-400', badge: { variant: 'warning', label: 'Maintenance'  } },
 }
-
-const alerts = ref([
-  {
-    id: 1,
-    type: 'emergency',
-    title: 'Typhoon Advisory',
-    message: 'Signal No. 2 raised. Residents near low-lying areas are advised to evacuate to the barangay hall.',
-    date: 'June 4, 2026',
-  },
-  {
-    id: 2,
-    type: 'announcement',
-    title: 'Barangay Fiesta 2026',
-    message: 'Join us on June 24 for the annual Barangay Manggahan Fiesta! Activities start at 8AM at the covered court.',
-    date: 'June 3, 2026',
-  },
-  {
-    id: 3,
-    type: 'maintenance',
-    title: 'Scheduled Water Interruption',
-    message: 'June 5, 8AM–5PM. Purok 1 to 4 affected. Please store enough water in advance.',
-    date: 'June 2, 2026',
-  },
-])
-
-const alertsWithConfig = computed(() =>
-  alerts.value.map(a => ({ ...a, ...typeConfig[a.type] }))
-)
 
 const filters = [
   { label: 'All',          value: 'all'          },
@@ -213,26 +188,36 @@ const filters = [
   { label: 'Maintenance',  value: 'maintenance'  },
 ]
 
+const alertsWithConfig = computed(() =>
+  alerts.value.map(a => ({
+    ...a,
+    ...(typeConfig[a.type] ?? typeConfig.announcement),
+    date: new Date(a.created_at).toLocaleDateString('en-PH', {
+      year: 'numeric', month: 'long', day: 'numeric'
+    }),
+  }))
+)
+
 const filtered = computed(() =>
   activeFilter.value === 'all'
     ? alertsWithConfig.value
     : alertsWithConfig.value.filter(a => a.type === activeFilter.value)
 )
 
-const form = reactive({ type: '', title: '', message: '' })
+const form   = reactive({ type: '', title: '', message: '' })
 const errors = reactive({ type: '', title: '', message: '' })
 
 function openModal(item = null) {
   if (item) {
-    editingId.value  = item.id
-    form.type        = item.type
-    form.title       = item.title
-    form.message     = item.message
+    editingId.value = item.id
+    form.type       = item.type
+    form.title      = item.title
+    form.message    = item.message
   } else {
-    editingId.value  = null
-    form.type        = ''
-    form.title       = ''
-    form.message     = ''
+    editingId.value = null
+    form.type       = ''
+    form.title      = ''
+    form.message    = ''
   }
   errors.type    = ''
   errors.title   = ''
@@ -255,31 +240,40 @@ async function handleSubmit() {
   if (!validate()) return
   loading.value = true
   try {
-    await new Promise(r => setTimeout(r, 600))
     if (editingId.value) {
+      const { data } = await api.put(`/alerts/${editingId.value}`, form)
       const idx = alerts.value.findIndex(a => a.id === editingId.value)
-      if (idx !== -1) {
-        alerts.value[idx] = { ...alerts.value[idx], ...form }
-      }
+      if (idx !== -1) alerts.value[idx] = data.alert
       toast.success('Alert updated!')
     } else {
-      alerts.value.unshift({
-        id:      Date.now(),
-        type:    form.type,
-        title:   form.title,
-        message: form.message,
-        date:    new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }),
-      })
+      const { data } = await api.post('/alerts', form)
+      alerts.value.unshift(data.alert)
       toast.success('Alert posted!')
     }
     closeModal()
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Failed to save alert.')
   } finally {
     loading.value = false
   }
 }
 
-function deleteAlert(id) {
-  alerts.value = alerts.value.filter(a => a.id !== id)
-  toast.success('Alert deleted.')
+async function deleteAlert(id) {
+  try {
+    await api.delete(`/alerts/${id}`)
+    alerts.value = alerts.value.filter(a => a.id !== id)
+    toast.success('Alert deleted.')
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Failed to delete alert.')
+  }
 }
+
+onMounted(async () => {
+  try {
+    const { data } = await api.get('/alerts')
+    alerts.value = data.alerts
+  } finally {
+    fetching.value = false
+  }
+})
 </script>

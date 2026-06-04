@@ -14,7 +14,7 @@
       <button
         v-for="type in reportTypes"
         :key="type.value"
-        @click="activeReport = type.value"
+        @click="switchReport(type.value)"
         :class="[
           'card rounded-2xl p-4 text-left transition-all border-2',
           activeReport === type.value
@@ -26,7 +26,7 @@
           <component :is="type.icon" :class="['w-4 h-4', type.iconColor]" />
         </div>
         <p class="text-sm font-semibold text-primary-dark">{{ type.label }}</p>
-        <p class="text-xs text-gray-400 mt-0.5">{{ type.count }} records</p>
+        <p class="text-xs text-gray-400 mt-0.5">{{ rows.length }} records</p>
       </button>
     </div>
 
@@ -58,6 +58,9 @@
           <option v-for="s in currentStatuses" :key="s" :value="s">{{ s }}</option>
         </select>
       </div>
+      <AppButton variant="outline" size="sm" @click="fetchReport">
+        Apply
+      </AppButton>
       <AppButton variant="primary" size="sm" @click="exportCSV">
         <ArrowDownTrayIcon class="w-4 h-4" />
         Export CSV
@@ -72,8 +75,13 @@
       </div>
     </div>
 
+    <!-- Loading state -->
+    <div v-if="fetching" class="card rounded-2xl p-10 text-center text-gray-400 text-sm">
+      Loading...
+    </div>
+
     <!-- Table -->
-    <div class="card rounded-2xl overflow-hidden">
+    <div v-else class="card rounded-2xl overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
@@ -88,9 +96,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr
-              v-if="filteredRows.length === 0"
-            >
+            <tr v-if="filteredRows.length === 0">
               <td :colspan="currentColumns.length" class="px-4 py-10 text-center text-gray-400 text-sm">
                 No records found.
               </td>
@@ -106,7 +112,7 @@
                 class="px-4 py-3 text-gray-700"
               >
                 <AppBadge
-                  v-if="col.key === 'status'"
+                  v-if="col.key === 'status' || col.key === 'type'"
                   :variant="statusVariant(row[col.key])"
                 >
                   {{ row[col.key] }}
@@ -123,7 +129,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import {
   ExclamationCircleIcon,
   CalendarDaysIcon,
@@ -132,20 +138,23 @@ import {
   ArrowDownTrayIcon,
 } from '@heroicons/vue/24/outline'
 import { useToast } from 'vue-toastification'
+import api from '@/services/api'
 import AppButton from '@/components/common/AppButton.vue'
 import AppBadge from '@/components/common/AppBadge.vue'
 
-const toast = useToast()
+const toast        = useToast()
 const activeReport = ref('incidents')
+const fetching     = ref(false)
+const rows         = ref([])
 
 const filters = reactive({ from: '', to: '', status: '' })
 
 // ─── Report type definitions ───────────────────────────────────────────────
 const reportTypes = [
-  { value: 'incidents',    label: 'Incidents',    count: 3, icon: ExclamationCircleIcon, iconBg: 'bg-red-50',    iconColor: 'text-red-400'    },
-  { value: 'appointments', label: 'Appointments', count: 4, icon: CalendarDaysIcon,      iconBg: 'bg-green-50',  iconColor: 'text-green-600'  },
-  { value: 'alerts',       label: 'Alerts',       count: 3, icon: BellAlertIcon,         iconBg: 'bg-yellow-50', iconColor: 'text-yellow-500' },
-  { value: 'waste',        label: 'Waste',        count: 5, icon: TrashIcon,             iconBg: 'bg-blue-50',   iconColor: 'text-blue-500'   },
+  { value: 'incidents',    label: 'Incidents',    icon: ExclamationCircleIcon, iconBg: 'bg-red-50',    iconColor: 'text-red-400'    },
+  { value: 'appointments', label: 'Appointments', icon: CalendarDaysIcon,      iconBg: 'bg-green-50',  iconColor: 'text-green-600'  },
+  { value: 'alerts',       label: 'Alerts',       icon: BellAlertIcon,         iconBg: 'bg-yellow-50', iconColor: 'text-yellow-500' },
+  { value: 'waste',        label: 'Waste',        icon: TrashIcon,             iconBg: 'bg-blue-50',   iconColor: 'text-blue-500'   },
 ]
 
 // ─── Column definitions per report ────────────────────────────────────────
@@ -167,14 +176,14 @@ const columnMap = {
     { key: 'time',     label: 'Time'      },
     { key: 'status',   label: 'Status'    },
   ],
-  alerts:       [
-    { key: 'id',      label: '#'          },
-    { key: 'type',    label: 'Type'       },
-    { key: 'title',   label: 'Title'      },
-    { key: 'message', label: 'Message'    },
-    { key: 'date',    label: 'Date'       },
+  alerts: [
+    { key: 'id',      label: '#'       },
+    { key: 'type',    label: 'Type'    },
+    { key: 'title',   label: 'Title'   },
+    { key: 'message', label: 'Message' },
+    { key: 'date',    label: 'Date'    },
   ],
-  waste:        [
+  waste: [
     { key: 'id',       label: '#'         },
     { key: 'resident', label: 'Resident'  },
     { key: 'type',     label: 'Waste Type'},
@@ -184,64 +193,57 @@ const columnMap = {
   ],
 }
 
-// ─── Mock data per report ──────────────────────────────────────────────────
-const dataMap = {
-  incidents: [
-    { id: 1, resident: 'Juan dela Cruz',  title: 'Noise complaint',       category: 'Noise Complaint',      location: 'Purok 3', date: 'June 2, 2026',  status: 'Pending'      },
-    { id: 2, resident: 'Maria Santos',    title: 'Illegal dumping',        category: 'Illegal Dumping',       location: 'Purok 5', date: 'May 28, 2026',  status: 'Under Review' },
-    { id: 3, resident: 'Pedro Reyes',     title: 'Broken streetlight',     category: 'Broken Infrastructure', location: 'Rizal St',date: 'May 20, 2026',  status: 'Resolved'     },
-  ],
-  appointments: [
-    { id: 1, resident: 'Juan dela Cruz',   purpose: 'Barangay ID Renewal',      date: 'June 10, 2026', time: '9:00 AM',  status: 'Pending'   },
-    { id: 2, resident: 'Maria Santos',     purpose: 'Certificate of Residency', date: 'June 15, 2026', time: '2:00 PM',  status: 'Approved'  },
-    { id: 3, resident: 'Pedro Reyes',      purpose: 'Barangay Clearance',       date: 'June 12, 2026', time: '10:00 AM', status: 'Completed' },
-    { id: 4, resident: 'Ana Villanueva',   purpose: 'Certificate of Indigency', date: 'June 8, 2026',  time: '1:00 PM',  status: 'Cancelled' },
-  ],
-  alerts: [
-    { id: 1, type: 'Emergency',    title: 'Typhoon Advisory',          message: 'Signal No. 2 raised.',                           date: 'June 4, 2026' },
-    { id: 2, type: 'Announcement', title: 'Barangay Fiesta 2026',      message: 'June 24 at the covered court.',                  date: 'June 3, 2026' },
-    { id: 3, type: 'Maintenance',  title: 'Water Interruption',        message: 'June 5, 8AM–5PM. Purok 1–4.',                   date: 'June 2, 2026' },
-  ],
-  waste: [
-    { id: 1, resident: 'Juan dela Cruz',  type: 'Biodegradable',     date: 'June 5, 2026',  notes: '',                  status: 'Pending'   },
-    { id: 2, resident: 'Maria Santos',    type: 'Non-Biodegradable', date: 'June 5, 2026',  notes: '',                  status: 'Scheduled' },
-    { id: 3, resident: 'Pedro Reyes',     type: 'Bulk / Large Items',date: 'June 4, 2026',  notes: 'Old refrigerator.', status: 'Pending'   },
-    { id: 4, resident: 'Ana Villanueva',  type: 'Residual',          date: 'June 3, 2026',  notes: '',                  status: 'Collected' },
-    { id: 5, resident: 'Jose Mercado',    type: 'Hazardous',         date: 'June 2, 2026',  notes: 'Old paint cans.',   status: 'Missed'    },
-  ],
-}
-
 const currentColumns = computed(() => columnMap[activeReport.value])
 
 const currentStatuses = computed(() => {
-  const rows = dataMap[activeReport.value]
-  const statuses = [...new Set(rows.map(r => r.status).filter(Boolean))]
+  const statuses = [...new Set(rows.value.map(r => r.status).filter(Boolean))]
   return statuses
 })
 
 const filteredRows = computed(() => {
-  let rows = dataMap[activeReport.value]
-  if (filters.status) {
-    rows = rows.filter(r => r.status === filters.status)
-  }
-  // Date filter — basic string match for mock data; replace with Date comparison pag real API
-  return rows
+  if (!filters.status) return rows.value
+  return rows.value.filter(r => r.status === filters.status)
 })
 
 const summaryStats = computed(() => {
-  const rows = filteredRows.value
-  const total = rows.length
-  const statuses = [...new Set(rows.map(r => r.status).filter(Boolean))]
+  const total      = filteredRows.value.length
+  const statuses   = [...new Set(filteredRows.value.map(r => r.status).filter(Boolean))]
   const mainStatus = statuses[0] ?? '—'
-  const mainCount  = rows.filter(r => r.status === mainStatus).length
+  const mainCount  = filteredRows.value.filter(r => r.status === mainStatus).length
 
   return [
-    { label: 'Total Records',  value: total },
-    { label: mainStatus,       value: mainCount },
-    { label: 'This Month',     value: total },   // placeholder
-    { label: 'Exported',       value: 0     },   // placeholder
+    { label: 'Total Records', value: total     },
+    { label: mainStatus,      value: mainCount },
+    { label: 'This Month',    value: total     },
+    { label: 'Exported',      value: 0         },
   ]
 })
+
+// ─── Fetch from API ────────────────────────────────────────────────────────
+async function fetchReport() {
+  fetching.value = true
+  rows.value     = []
+  try {
+    const params = {}
+    if (filters.from) params.from = filters.from
+    if (filters.to)   params.to   = filters.to
+
+    const { data } = await api.get(`/admin/reports/${activeReport.value}`, { params })
+    rows.value = data.data
+  } catch (err) {
+    toast.error('Failed to load report.')
+  } finally {
+    fetching.value = false
+  }
+}
+
+function switchReport(type) {
+  activeReport.value = type
+  filters.from       = ''
+  filters.to         = ''
+  filters.status     = ''
+  fetchReport()
+}
 
 function statusVariant(status) {
   const map = {
@@ -263,10 +265,10 @@ function statusVariant(status) {
 
 function exportCSV() {
   const cols = currentColumns.value
-  const rows = filteredRows.value
+  const data = filteredRows.value
 
   const header = cols.map(c => c.label).join(',')
-  const body   = rows.map(r =>
+  const body   = data.map(r =>
     cols.map(c => `"${(r[c.key] ?? '').toString().replace(/"/g, '""')}"`).join(',')
   ).join('\n')
 
@@ -280,4 +282,6 @@ function exportCSV() {
   URL.revokeObjectURL(url)
   toast.success('CSV exported!')
 }
+
+onMounted(() => fetchReport())
 </script>
