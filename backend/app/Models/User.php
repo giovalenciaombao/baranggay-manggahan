@@ -1,6 +1,10 @@
 <?php
 
 namespace App\Models;
+use App\Models\Alert;
+use App\Models\Incident;
+use App\Models\Appointment;
+use App\Models\WasteRequest;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
