@@ -64,4 +64,13 @@ class AppointmentController extends Controller
             'appointment' => $appointment,
         ]);
     }
+
+    public function adminIndex()
+    {
+        $appointments = Appointment::with('user:id,first_name,last_name')
+            ->latest()
+            ->get();
+
+        return response()->json(['appointments' => $appointments]);
+    }
 }

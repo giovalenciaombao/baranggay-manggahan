@@ -68,4 +68,13 @@ class WasteRequestController extends Controller
         $wasteRequest->delete();
         return response()->json(['message' => 'Record deleted successfully.']);
     }
+
+    public function adminIndex()
+    {
+        $wasteRequests = WasteRequest::with('user:id,first_name,last_name')
+            ->latest()
+            ->get();
+
+        return response()->json(['waste_requests' => $wasteRequests]);
+    }
 }
