@@ -1,0 +1,22 @@
+# Node
+node_modules/
+
+# Laravel backend
+backend/.env
+backend/storage/logs/
+backend/storage/framework/cache/
+backend/storage/framework/sessions/
+backend/storage/framework/views/
+backend/vendor/
+backend/public/hot
+backend/public/storage
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.env*
+
+# OS
+.DS_Store
+Thumbs.db
