@@ -1,10 +1,9 @@
 <template>
-  <ResidentLayout>
     <div class="p-4 sm:p-6 space-y-6">
 
       <!-- Header -->
       <div>
-        <h1 class="text-xl font-semibold text-primary-dark">Good {{ timeOfDay }}, {{ user?.first_name }}! 👋</h1>
+        <h1 class="text-xl font-semibold text-primary-dark">Good {{ timeOfDay }}, {{ user?.first_name }}!</h1>
         <p class="text-sm text-gray-400 mt-0.5">Here's what's happening in Barangay Manggahan.</p>
       </div>
 
@@ -103,7 +102,6 @@
       </div>
 
     </div>
-  </ResidentLayout>
 </template>
 
 <script setup>

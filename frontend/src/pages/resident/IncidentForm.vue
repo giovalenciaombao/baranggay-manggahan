@@ -1,5 +1,4 @@
 <template>
-  <ResidentLayout>
     <div class="p-4 sm:p-6 max-w-xl mx-auto space-y-5">
 
       <!-- Header -->
@@ -106,7 +105,6 @@
 
       </div>
     </div>
-  </ResidentLayout>
 </template>
 
 <script setup>
