@@ -15,9 +15,18 @@ export const useAuthStore = defineStore('auth', () => {
 
   // ─── Actions ───────────────────────────────────────────────────────────────
   async function login(credentials) {
-    const { data } = await api.post('/auth/login', credentials)
-    setAuth(data.token, data.user)
-    return data
+    // mock lang muna
+    if (credentials.email === 'admin@manggahan.ph' && credentials.password === 'password') {
+      this.user = { first_name: 'Jonas', last_name: 'Dev', role: 'admin' }
+      this.token = 'mock-token'
+      return { user: this.user }
+    }
+    if (credentials.email === 'resident@manggahan.ph' && credentials.password === 'password') {
+      this.user = { first_name: 'Juan', last_name: 'dela Cruz', role: 'resident' }
+      this.token = 'mock-token'
+      return { user: this.user }
+    }
+    throw { response: { data: { message: 'Invalid credentials.' } } }
   }
 
   async function register(payload) {
