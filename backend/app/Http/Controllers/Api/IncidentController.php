@@ -72,4 +72,13 @@ class IncidentController extends Controller
             'incident' => $incident,
         ]);
     }
+    // Admin — view all incidents
+    public function adminIndex()
+    {
+        $incidents = Incident::with('user:id,first_name,last_name')
+            ->latest()
+            ->get();
+
+        return response()->json(['incidents' => $incidents]);
+    }
 }

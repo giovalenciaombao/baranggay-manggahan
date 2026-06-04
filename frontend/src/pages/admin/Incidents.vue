@@ -159,7 +159,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import {
   MagnifyingGlassIcon,
@@ -168,13 +168,16 @@ import {
   MapPinIcon,
   XMarkIcon,
 } from '@heroicons/vue/24/outline'
+import api from '@/services/api'
 import AppBadge from '@/components/common/AppBadge.vue'
 
 const toast        = useToast()
 const activeFilter = ref('all')
 const search       = ref('')
+const loading      = ref(true)
 const showModal    = ref(false)
 const selectedItem = ref(null)
+const incidents    = ref([])
 
 const statusMap = {
   pending:   { variant: 'warning', label: 'Pending'      },
@@ -182,43 +185,6 @@ const statusMap = {
   resolved:  { variant: 'success', label: 'Resolved'     },
   dismissed: { variant: 'default', label: 'Dismissed'    },
 }
-
-const incidents = ref([
-  {
-    id: 1,
-    title: 'Noise complaint — Purok 3',
-    resident: 'Juan dela Cruz',
-    category: 'Noise Complaint',
-    location: 'Purok 3, near basketball court',
-    description: 'Loud music every night past 10PM near the basketball court.',
-    date: 'June 2, 2026',
-    statusKey: 'pending',
-  },
-  {
-    id: 2,
-    title: 'Illegal dumping near creek',
-    resident: 'Maria Santos',
-    category: 'Illegal Dumping',
-    location: 'Purok 5, near creek',
-    description: 'Someone has been dumping garbage near the creek at Purok 5.',
-    date: 'May 28, 2026',
-    statusKey: 'review',
-  },
-  {
-    id: 3,
-    title: 'Broken streetlight',
-    resident: 'Pedro Reyes',
-    category: 'Broken Infrastructure',
-    location: 'Corner Rizal St.',
-    description: 'Streetlight at corner of Rizal St. has been out for 2 weeks.',
-    date: 'May 20, 2026',
-    statusKey: 'resolved',
-  },
-])
-
-const incidentsWithStatus = computed(() =>
-  incidents.value.map(i => ({ ...i, status: statusMap[i.statusKey] }))
-)
 
 const filters = [
   { label: 'All',          value: 'all'       },
@@ -228,10 +194,19 @@ const filters = [
   { label: 'Dismissed',    value: 'dismissed' },
 ]
 
+const incidentsWithMeta = computed(() =>
+  incidents.value.map(i => ({
+    ...i,
+    resident: i.user ? `${i.user.first_name} ${i.user.last_name}` : '—',
+    date:     new Date(i.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }),
+    status:   statusMap[i.status] ?? { variant: 'default', label: i.status },
+  }))
+)
+
 const filtered = computed(() => {
-  let list = incidentsWithStatus.value
+  let list = incidentsWithMeta.value
   if (activeFilter.value !== 'all') {
-    list = list.filter(i => i.statusKey === activeFilter.value)
+    list = list.filter(i => i.status.label.toLowerCase().includes(activeFilter.value) || i.statusKey === activeFilter.value)
   }
   if (search.value.trim()) {
     const q = search.value.toLowerCase()
@@ -243,8 +218,26 @@ const filtered = computed(() => {
   return list
 })
 
-function updateStatus(item) {
-  item.status = statusMap[item.statusKey]
-  toast.success('Status updated!')
+async function updateStatus(item, newStatus) {
+  try {
+    await api.put(`/incidents/${item.id}`, { status: newStatus })
+    item.status    = statusMap[newStatus]
+    item.statusKey = newStatus
+    // update original
+    const original = incidents.value.find(i => i.id === item.id)
+    if (original) original.status = newStatus
+    toast.success('Status updated!')
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Failed to update status.')
+  }
 }
+
+onMounted(async () => {
+  try {
+    const { data } = await api.get('/admin/incidents')
+    incidents.value = data.incidents
+  } finally {
+    loading.value = false
+  }
+})
 </script>

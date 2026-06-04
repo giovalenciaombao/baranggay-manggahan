@@ -129,6 +129,7 @@ import {
   XMarkIcon,
 } from '@heroicons/vue/24/outline'
 import { useToast } from 'vue-toastification'
+import api from '@/services/api'
 import StatCard from '@/components/common/StatCard.vue'
 import AppBadge from '@/components/common/AppBadge.vue'
 
@@ -136,101 +137,112 @@ const toast = useToast()
 
 const incidentChart    = ref(null)
 const appointmentChart = ref(null)
+const loading          = ref(true)
 
-const stats = [
-  { label: 'Total Residents', value: 142, icon: UsersIcon,             color: 'blue'   },
-  { label: 'Incidents',       value: 18,  icon: ExclamationCircleIcon, color: 'red'    },
-  { label: 'Appointments',    value: 9,   icon: CalendarDaysIcon,      color: 'green'  },
-  { label: 'Active Alerts',   value: 3,   icon: BellAlertIcon,         color: 'yellow' },
-]
+const stats            = ref({})
+const pendingUsers     = ref([])
+const recentIncidents  = ref([])
 
-const pendingUsers = ref([
-  { id: 1, name: 'Maria Santos',  email: 'maria@email.com'  },
-  { id: 2, name: 'Pedro Reyes',   email: 'pedro@email.com'  },
-  { id: 3, name: 'Ana Villanueva', email: 'ana@email.com'   },
-])
-
-const recentIncidents = ref([
-  {
-    id: 1,
-    title: 'Noise complaint — Purok 3',
-    resident: 'Juan dela Cruz',
-    date: 'Jun 2',
-    status: { variant: 'warning', label: 'Pending' },
-  },
-  {
-    id: 2,
-    title: 'Illegal dumping near creek',
-    resident: 'Maria Santos',
-    date: 'May 28',
-    status: { variant: 'info', label: 'Under Review' },
-  },
-  {
-    id: 3,
-    title: 'Broken streetlight',
-    resident: 'Pedro Reyes',
-    date: 'May 20',
-    status: { variant: 'success', label: 'Resolved' },
-  },
-])
-
-function initials(name) {
-  return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+const statusMap = {
+  pending:   { variant: 'warning', label: 'Pending'      },
+  review:    { variant: 'info',    label: 'Under Review' },
+  resolved:  { variant: 'success', label: 'Resolved'     },
+  dismissed: { variant: 'default', label: 'Dismissed'    },
 }
 
-function approveUser(id) {
+const statCards = computed(() => [
+  { label: 'Total Residents', value: stats.value.total_residents   ?? 0, icon: UsersIcon,             color: 'blue'   },
+  { label: 'Incidents',       value: stats.value.total_incidents   ?? 0, icon: ExclamationCircleIcon, color: 'red'    },
+  { label: 'Appointments',    value: stats.value.total_appointments ?? 0, icon: CalendarDaysIcon,      color: 'green'  },
+  { label: 'Active Alerts',   value: stats.value.active_alerts     ?? 0, icon: BellAlertIcon,         color: 'yellow' },
+])
+
+async function approveUser(id) {
+  await api.put(`/admin/users/${id}/status`, { status: 'active' })
   pendingUsers.value = pendingUsers.value.filter(u => u.id !== id)
   toast.success('User approved!')
 }
 
-function rejectUser(id) {
+async function rejectUser(id) {
+  await api.put(`/admin/users/${id}/status`, { status: 'rejected' })
   pendingUsers.value = pendingUsers.value.filter(u => u.id !== id)
   toast.error('User rejected.')
 }
 
+function initials(user) {
+  return `${user.first_name?.[0] ?? ''}${user.last_name?.[0] ?? ''}`.toUpperCase()
+}
+
 onMounted(async () => {
-  const Chart = (await import('chart.js/auto')).default
+  try {
+    const { data } = await api.get('/admin/dashboard')
 
-  new Chart(incidentChart.value, {
-    type: 'bar',
-    data: {
-      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-      datasets: [{
-        label: 'Incidents',
-        data: [4, 6, 3, 8, 5, 7],
-        backgroundColor: '#5C6B2E',
-        borderRadius: 6,
-      }],
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: { beginAtZero: true, ticks: { stepSize: 2 } },
-        x: { grid: { display: false } },
+    stats.value           = data.stats
+    pendingUsers.value    = data.pending_users
+    recentIncidents.value = data.recent_incidents.map(i => ({
+      ...i,
+      resident: i.user ? `${i.user.first_name} ${i.user.last_name}` : '—',
+      date:     new Date(i.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }),
+      status:   statusMap[i.status] ?? { variant: 'default', label: i.status },
+    }))
+
+    // Charts
+    const Chart = (await import('chart.js/auto')).default
+
+    // Incidents per month
+    const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const monthData   = Array(12).fill(0)
+    data.incidents_per_month.forEach(i => { monthData[i.month - 1] = i.count })
+
+    new Chart(incidentChart.value, {
+      type: 'bar',
+      data: {
+        labels: monthLabels,
+        datasets: [{
+          label: 'Incidents',
+          data: monthData,
+          backgroundColor: '#5C6B2E',
+          borderRadius: 6,
+        }],
       },
-    },
-  })
-
-  new Chart(appointmentChart.value, {
-    type: 'doughnut',
-    data: {
-      labels: ['Approved', 'Pending', 'Cancelled'],
-      datasets: [{
-        data: [12, 5, 2],
-        backgroundColor: ['#5C6B2E', '#F5A623', '#E74C3C'],
-        borderWidth: 0,
-      }],
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { boxWidth: 12, padding: 16, font: { size: 12 } },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 } },
+          x: { grid: { display: false } },
         },
       },
-    },
-  })
+    })
+
+    // Appointments by status
+    const apptData   = data.appointments_by_status
+    const apptLabels = apptData.map(a => a.status.charAt(0).toUpperCase() + a.status.slice(1))
+    const apptCounts = apptData.map(a => a.count)
+
+    new Chart(appointmentChart.value, {
+      type: 'doughnut',
+      data: {
+        labels: apptLabels,
+        datasets: [{
+          data: apptCounts,
+          backgroundColor: ['#5C6B2E', '#F5A623', '#E74C3C', '#95A5A6'],
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { boxWidth: 12, padding: 16, font: { size: 12 } },
+          },
+        },
+      },
+    })
+
+  } finally {
+    loading.value = false
+  }
 })
 </script>

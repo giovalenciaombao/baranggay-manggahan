@@ -111,7 +111,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import {
   MagnifyingGlassIcon,
@@ -119,11 +119,14 @@ import {
   XMarkIcon,
   NoSymbolIcon,
 } from '@heroicons/vue/24/outline'
+import api from '@/services/api'
 import AppBadge from '@/components/common/AppBadge.vue'
 
 const toast        = useToast()
 const activeFilter = ref('all')
 const search       = ref('')
+const loading      = ref(true)
+const users        = ref([])
 
 const statusMap = {
   active:    { variant: 'success', label: 'Active'    },
@@ -132,29 +135,25 @@ const statusMap = {
   suspended: { variant: 'default', label: 'Suspended' },
 }
 
-const users = ref([
-  { id: 1, name: 'Juan dela Cruz',   email: 'juan@email.com',   address: 'Purok 1, Manggahan', statusKey: 'active'    },
-  { id: 2, name: 'Maria Santos',     email: 'maria@email.com',  address: 'Purok 2, Manggahan', statusKey: 'pending'   },
-  { id: 3, name: 'Pedro Reyes',      email: 'pedro@email.com',  address: 'Purok 3, Manggahan', statusKey: 'pending'   },
-  { id: 4, name: 'Ana Villanueva',   email: 'ana@email.com',    address: 'Purok 4, Manggahan', statusKey: 'active'    },
-  { id: 5, name: 'Jose Mercado',     email: 'jose@email.com',   address: 'Purok 5, Manggahan', statusKey: 'suspended' },
-  { id: 6, name: 'Liza Chua',        email: 'liza@email.com',   address: 'Purok 1, Manggahan', statusKey: 'rejected'  },
-])
-
-const usersWithStatus = computed(() =>
-  users.value.map(u => ({ ...u, status: statusMap[u.statusKey] }))
-)
-
 const filters = computed(() => [
   { label: 'All',       value: 'all',       count: users.value.length },
-  { label: 'Pending',   value: 'pending',   count: users.value.filter(u => u.statusKey === 'pending').length   || null },
+  { label: 'Pending',   value: 'pending',   count: users.value.filter(u => u.status === 'pending').length   || null },
   { label: 'Active',    value: 'active',    count: null },
   { label: 'Suspended', value: 'suspended', count: null },
   { label: 'Rejected',  value: 'rejected',  count: null },
 ])
 
+const usersWithMeta = computed(() =>
+  users.value.map(u => ({
+    ...u,
+    name:      `${u.first_name} ${u.last_name}`,
+    statusKey: u.status,
+    status:    statusMap[u.status] ?? { variant: 'default', label: u.status },
+  }))
+)
+
 const filtered = computed(() => {
-  let list = usersWithStatus.value
+  let list = usersWithMeta.value
   if (activeFilter.value !== 'all') {
     list = list.filter(u => u.statusKey === activeFilter.value)
   }
@@ -172,15 +171,28 @@ function initials(name) {
   return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
 }
 
-function updateStatus(id, newStatus) {
-  const user = users.value.find(u => u.id === id)
-  if (!user) return
-  user.statusKey = newStatus
-  const messages = {
-    active:    'User approved!',
-    rejected:  'User rejected.',
-    suspended: 'User suspended.',
+async function updateStatus(id, newStatus) {
+  try {
+    await api.put(`/admin/users/${id}/status`, { status: newStatus })
+    const user = users.value.find(u => u.id === id)
+    if (user) user.status = newStatus
+    const messages = {
+      active:    'User approved!',
+      rejected:  'User rejected.',
+      suspended: 'User suspended.',
+    }
+    toast.success(messages[newStatus] ?? 'Status updated.')
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Failed to update status.')
   }
-  toast.success(messages[newStatus] ?? 'Status updated.')
 }
+
+onMounted(async () => {
+  try {
+    const { data } = await api.get('/admin/users')
+    users.value = data.users
+  } finally {
+    loading.value = false
+  }
+})
 </script>
