@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\WasteRequestController;
 use App\Http\Controllers\Api\Admin\UserController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\ReportController;
+use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\GoogleAuthController;
 
 // ─── Public Routes ────────────────────────────────────────────────────────────
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -17,6 +19,10 @@ Route::post('/auth/login',    [AuthController::class, 'login']);
 // Public alerts (visible on homepage)
 Route::get('/alerts',         [AlertController::class, 'index']);
 Route::get('/alerts/{alert}', [AlertController::class, 'show']);
+
+// Google OAuth
+Route::get('/auth/google/redirect',  [GoogleAuthController::class, 'redirect']);
+Route::get('/auth/google/callback',  [GoogleAuthController::class, 'callback']);
 
 // ─── Authenticated Routes ─────────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
@@ -44,6 +50,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/waste',                [WasteRequestController::class, 'index']);
     Route::post('/waste',               [WasteRequestController::class, 'store']);
     Route::get('/waste/{wasteRequest}', [WasteRequestController::class, 'show']);
+
+    // Notifications
+    Route::get('/notifications',              [NotificationController::class, 'index']);
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::put('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
+    Route::put('/notifications/read-all',     [NotificationController::class, 'markAllAsRead']);
 
     // ─── Admin Routes ─────────────────────────────────────────────────────────
     Route::middleware('admin')->group(function () {

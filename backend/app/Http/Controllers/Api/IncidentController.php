@@ -67,6 +67,23 @@ class IncidentController extends Controller
 
         $incident->update(['status' => $request->status]);
 
+        // Status labels
+        $labels = [
+            'pending'   => 'Pending',
+            'review'    => 'Under Review',
+            'resolved'  => 'Resolved',
+            'dismissed' => 'Dismissed',
+        ];
+
+        // Create notification
+        \App\Models\Notification::create([
+            'user_id'      => $incident->user_id,
+            'type'         => 'incident',
+            'title'        => 'Incident Report Updated',
+            'message'      => "Your incident \"{$incident->title}\" is now {$labels[$request->status]}.",
+            'reference_id' => $incident->id,
+        ]);
+
         return response()->json([
             'message'  => 'Incident status updated.',
             'incident' => $incident,

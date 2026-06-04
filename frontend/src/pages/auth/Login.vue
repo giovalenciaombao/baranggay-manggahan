@@ -87,6 +87,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { useToast } from 'vue-toastification'
+import api from '@/services/api'
 import {
   HomeIcon,
   EyeIcon,
@@ -132,7 +133,12 @@ async function handleLogin() {
   }
 }
 
-function handleGoogle() {
-  window.location.href = '/api/auth/google/redirect'
+async function handleGoogle() {
+  try {
+    const { data } = await api.get('/auth/google/redirect')
+    window.location.href = data.url
+  } catch (_) {
+    toast.error('Failed to connect to Google. Please try again.')
+  }
 }
 </script>

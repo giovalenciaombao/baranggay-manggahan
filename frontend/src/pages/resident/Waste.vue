@@ -124,7 +124,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import { PlusIcon, TrashIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import api from '@/services/api'
