@@ -36,7 +36,12 @@ const routes = [
         name: 'pending-approval',
         component: () => import('@/pages/auth/PendingApproval.vue'),
         meta: { title: 'Pending Approval' }
-      }
+      },
+      {
+        path: '/auth/callback',
+        name: 'google-callback',
+        component: () => import('@/pages/auth/GoogleCallback.vue'),
+      },
     ]
   },
 

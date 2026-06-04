@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\Admin\UserController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\ReportController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\GoogleAuthController;
 
 // ─── Public Routes ────────────────────────────────────────────────────────────
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -18,6 +19,10 @@ Route::post('/auth/login',    [AuthController::class, 'login']);
 // Public alerts (visible on homepage)
 Route::get('/alerts',         [AlertController::class, 'index']);
 Route::get('/alerts/{alert}', [AlertController::class, 'show']);
+
+// Google OAuth
+Route::get('/auth/google/redirect',  [GoogleAuthController::class, 'redirect']);
+Route::get('/auth/google/callback',  [GoogleAuthController::class, 'callback']);
 
 // ─── Authenticated Routes ─────────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
