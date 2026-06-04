@@ -31,6 +31,25 @@ class UserController extends Controller
 
         $user->update(['status' => $request->status]);
 
+        $messages = [
+            'active'    => 'Your account has been approved! You can now log in.',
+            'suspended' => 'Your account has been suspended. Please contact the barangay office.',
+            'rejected'  => 'Your account registration has been rejected.',
+        ];
+
+        $titles = [
+            'active'    => 'Account Approved',
+            'suspended' => 'Account Suspended',
+            'rejected'  => 'Account Rejected',
+        ];
+
+        \App\Models\Notification::create([
+            'user_id' => $user->id,
+            'type'    => 'user',
+            'title'   => $titles[$request->status],
+            'message' => $messages[$request->status],
+        ]);
+
         return response()->json([
             'message' => 'User status updated.',
             'user'    => $user,

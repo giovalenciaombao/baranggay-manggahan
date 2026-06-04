@@ -31,7 +31,7 @@ class User extends Authenticatable
     public function appointments() { return $this->hasMany(Appointment::class); }
     public function wasteRequests(){ return $this->hasMany(WasteRequest::class); }
     public function alerts()       { return $this->hasMany(Alert::class); }
-
+    public function notifications() { return $this->hasMany(Notification::class); }
     // Helper
     public function getFullNameAttribute() {
         return "{$this->first_name} {$this->last_name}";

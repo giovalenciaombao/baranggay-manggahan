@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\WasteRequestController;
 use App\Http\Controllers\Api\Admin\UserController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\ReportController;
+use App\Http\Controllers\Api\NotificationController;
 
 // ─── Public Routes ────────────────────────────────────────────────────────────
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -44,6 +45,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/waste',                [WasteRequestController::class, 'index']);
     Route::post('/waste',               [WasteRequestController::class, 'store']);
     Route::get('/waste/{wasteRequest}', [WasteRequestController::class, 'show']);
+
+    // Notifications
+    Route::get('/notifications',              [NotificationController::class, 'index']);
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::put('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
+    Route::put('/notifications/read-all',     [NotificationController::class, 'markAllAsRead']);
 
     // ─── Admin Routes ─────────────────────────────────────────────────────────
     Route::middleware('admin')->group(function () {

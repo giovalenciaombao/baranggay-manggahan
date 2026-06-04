@@ -57,6 +57,21 @@ class WasteRequestController extends Controller
 
         $wasteRequest->update(['status' => $request->status]);
 
+        $labels = [
+            'pending'   => 'Pending',
+            'scheduled' => 'Scheduled',
+            'collected' => 'Collected',
+            'missed'    => 'Missed',
+        ];
+
+        \App\Models\Notification::create([
+            'user_id'      => $wasteRequest->user_id,
+            'type'         => 'waste',
+            'title'        => 'Waste Pickup Updated',
+            'message'      => "Your waste pickup request is now {$labels[$request->status]}.",
+            'reference_id' => $wasteRequest->id,
+        ]);
+
         return response()->json([
             'message'       => 'Waste request status updated.',
             'waste_request' => $wasteRequest,

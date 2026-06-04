@@ -59,6 +59,21 @@ class AppointmentController extends Controller
 
         $appointment->update(['status' => $request->status]);
 
+        $labels = [
+            'pending'   => 'Pending',
+            'approved'  => 'Approved',
+            'cancelled' => 'Cancelled',
+            'completed' => 'Completed',
+        ];
+
+        \App\Models\Notification::create([
+            'user_id'      => $appointment->user_id,
+            'type'         => 'appointment',
+            'title'        => 'Appointment Updated',
+            'message'      => "Your appointment for \"{$appointment->purpose}\" is now {$labels[$request->status]}.",
+            'reference_id' => $appointment->id,
+        ]);
+
         return response()->json([
             'message'     => 'Appointment status updated.',
             'appointment' => $appointment,

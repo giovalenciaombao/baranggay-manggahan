@@ -39,6 +39,27 @@ class AlertController extends Controller
             'message' => $request->message,
         ]);
 
+        // Notify all active residents
+        $residents = \App\Models\User::where('role', 'resident')
+            ->where('status', 'active')
+            ->get();
+
+        $typeLabels = [
+            'emergency'    => 'Emergency Alert',
+            'announcement' => 'New Announcement',
+            'maintenance'  => 'Maintenance Notice',
+        ];
+
+        foreach ($residents as $resident) {
+            \App\Models\Notification::create([
+                'user_id'      => $resident->id,
+                'type'         => 'alert',
+                'title'        => $typeLabels[$request->type] ?? 'New Alert',
+                'message'      => $alert->title . ' — ' . $alert->message,
+                'reference_id' => $alert->id,
+            ]);
+        }
+
         return response()->json([
             'message' => 'Alert posted successfully.',
             'alert'   => $alert,
