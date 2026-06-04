@@ -122,7 +122,7 @@ async function handleLogin() {
   apiError.value = ''
   try {
     const data = await authStore.login(form)
-    toast.success(`Welcome, ${data.user.name}!`)
+    toast.success(`Welcome, ${data.user.first_name}!`)
     const redirect = new URLSearchParams(window.location.search).get('redirect')
     router.push(redirect || (data.user.role === 'admin' ? '/admin' : '/portal'))
   } catch (err) {
