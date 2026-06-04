@@ -4,7 +4,6 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-xl font-semibold text-primary-dark">Waste Management</h1>
         <p class="text-sm text-gray-400 mt-0.5">Track your waste pickup schedule.</p>
       </div>
       <AppButton variant="primary" size="sm" @click="showModal = true">

@@ -4,7 +4,6 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-xl font-semibold text-primary-dark">Appointments</h1>
         <p class="text-sm text-gray-400 mt-0.5">Manage your barangay appointments.</p>
       </div>
       <RouterLink :to="{ name: 'resident-appointments-new' }">
