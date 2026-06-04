@@ -92,9 +92,9 @@
             <option value="missed">Missed</option>
           </select>
           <button
-            @click="deleteRecord(item.id)"
-            class="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-xs text-red-600 transition-colors"
-          >
+              @click="deleteRequest(item.id)"
+              class="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-xs text-red-600 transition-colors"
+            >
             <TrashIcon class="w-3.5 h-3.5" />
           </button>
         </div>
@@ -171,13 +171,12 @@ const filtered = computed(() => {
   return list
 })
 
-async function updateStatus(item, newStatus) {
+async function updateStatus(item) {
   try {
-    await api.put(`/waste/${item.id}`, { status: newStatus })
+    await api.put(`/waste/${item.id}`, { status: item.statusKey })
     const original = waste.value.find(w => w.id === item.id)
-    if (original) original.status = newStatus
-    item.statusKey = newStatus
-    item.status    = statusMap[newStatus]
+    if (original) original.status = item.statusKey
+    item.status = statusMap[item.statusKey]
     toast.success('Waste request status updated!')
   } catch (err) {
     toast.error(err.response?.data?.message || 'Failed to update status.')

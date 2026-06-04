@@ -218,14 +218,12 @@ const filtered = computed(() => {
   return list
 })
 
-async function updateStatus(item, newStatus) {
+async function updateStatus(item) {
   try {
-    await api.put(`/incidents/${item.id}`, { status: newStatus })
-    item.status    = statusMap[newStatus]
-    item.statusKey = newStatus
-    // update original
+    await api.put(`/incidents/${item.id}`, { status: item.statusKey })
     const original = incidents.value.find(i => i.id === item.id)
-    if (original) original.status = newStatus
+    if (original) original.status = item.statusKey
+    item.status = statusMap[item.statusKey]
     toast.success('Status updated!')
   } catch (err) {
     toast.error(err.response?.data?.message || 'Failed to update status.')
