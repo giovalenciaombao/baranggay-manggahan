@@ -3,7 +3,6 @@
 
     <!-- Header -->
     <div>
-      <h1 class="text-xl font-semibold text-primary-dark">User Management</h1>
       <p class="text-sm text-gray-400 mt-0.5">Manage resident accounts and approvals.</p>
     </div>
 
