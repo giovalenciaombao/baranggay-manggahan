@@ -71,6 +71,12 @@ const routes = [
         meta: { title: 'Appointments' }
       },
       {
+        path: 'appointments/new',
+        name: 'resident-appointments-new',
+        component: () => import('@/pages/resident/AppointmentForm.vue'),
+        meta: { title: 'Book Appointment' }
+      },
+      {
         path: 'alerts',
         name: 'resident-alerts',
         component: () => import('@/pages/resident/Alerts.vue'),
