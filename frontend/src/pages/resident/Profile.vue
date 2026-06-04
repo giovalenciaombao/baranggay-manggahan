@@ -161,6 +161,7 @@ import {
   EyeIcon,
   EyeSlashIcon,
 } from '@heroicons/vue/24/outline'
+import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import AppInput from '@/components/common/AppInput.vue'
 import AppButton from '@/components/common/AppButton.vue'
@@ -207,8 +208,7 @@ async function handleSave() {
   apiError.value = ''
   saved.value    = false
   try {
-    // TODO: replace with actual API call
-    await new Promise(r => setTimeout(r, 800))
+    await authStore.updateProfile(form)
     saved.value = true
     toast.success('Profile updated!')
   } catch (err) {
@@ -219,10 +219,10 @@ async function handleSave() {
 }
 
 // Password form
-const pwLoading     = ref(false)
-const showCurrent   = ref(false)
-const showNew       = ref(false)
-const showConfirm   = ref(false)
+const pwLoading   = ref(false)
+const showCurrent = ref(false)
+const showNew     = ref(false)
+const showConfirm = ref(false)
 
 const pwForm = reactive({
   current_password:      '',
@@ -237,10 +237,10 @@ const pwErrors = reactive({
 })
 
 function validatePassword() {
-  pwErrors.current_password      = !pwForm.current_password          ? 'Required.'              : ''
-  pwErrors.password              = pwForm.password.length < 8        ? 'At least 8 characters.' : ''
+  pwErrors.current_password      = !pwForm.current_password       ? 'Required.'              : ''
+  pwErrors.password              = pwForm.password.length < 8     ? 'At least 8 characters.' : ''
   pwErrors.password_confirmation = pwForm.password !== pwForm.password_confirmation
-                                    ? 'Passwords do not match.'      : ''
+                                    ? 'Passwords do not match.'   : ''
   return Object.values(pwErrors).every(e => !e)
 }
 
@@ -248,13 +248,13 @@ async function handlePasswordChange() {
   if (!validatePassword()) return
   pwLoading.value = true
   try {
-    await new Promise(r => setTimeout(r, 800))
+    await authStore.updatePassword(pwForm)
     toast.success('Password updated!')
     pwForm.current_password      = ''
     pwForm.password              = ''
     pwForm.password_confirmation = ''
   } catch (err) {
-    toast.error('Failed to update password.')
+    toast.error(err.response?.data?.message || 'Failed to update password.')
   } finally {
     pwLoading.value = false
   }

@@ -124,9 +124,10 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import { PlusIcon, TrashIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import api from '@/services/api'
 import AppButton from '@/components/common/AppButton.vue'
 import AppBadge from '@/components/common/AppBadge.vue'
 import AppInput from '@/components/common/AppInput.vue'
@@ -134,45 +135,46 @@ import AppInput from '@/components/common/AppInput.vue'
 const toast     = useToast()
 const showModal = ref(false)
 const loading   = ref(false)
+const fetching  = ref(true)
 const today     = new Date().toISOString().split('T')[0]
+const history   = ref([])
+
+const statusMap = {
+  pending:   { variant: 'warning', label: 'Pending'   },
+  scheduled: { variant: 'info',    label: 'Scheduled' },
+  collected: { variant: 'success', label: 'Collected' },
+  missed:    { variant: 'danger',  label: 'Missed'    },
+}
+
+const typeConfig = {
+  'Biodegradable':      { iconBg: 'bg-green-50',  iconColor: 'text-green-600' },
+  'Non-Biodegradable':  { iconBg: 'bg-blue-50',   iconColor: 'text-blue-500'  },
+  'Residual':           { iconBg: 'bg-gray-50',   iconColor: 'text-gray-500'  },
+  'Hazardous':          { iconBg: 'bg-red-50',    iconColor: 'text-red-500'   },
+  'Bulk / Large Items': { iconBg: 'bg-yellow-50', iconColor: 'text-yellow-500'},
+}
 
 const schedule = [
-  { type: 'Biodegradable',    day: 'Monday & Thursday',  iconBg: 'bg-green-50',  iconColor: 'text-green-600', borderColor: 'border-green-400' },
-  { type: 'Non-Biodegradable', day: 'Tuesday & Friday',  iconBg: 'bg-blue-50',   iconColor: 'text-blue-500',  borderColor: 'border-blue-400'  },
-  { type: 'Residual',         day: 'Wednesday & Saturday', iconBg: 'bg-gray-50', iconColor: 'text-gray-500',  borderColor: 'border-gray-400'  },
+  { type: 'Biodegradable',     day: 'Monday & Thursday',    iconBg: 'bg-green-50',  iconColor: 'text-green-600', borderColor: 'border-green-400' },
+  { type: 'Non-Biodegradable', day: 'Tuesday & Friday',     iconBg: 'bg-blue-50',   iconColor: 'text-blue-500',  borderColor: 'border-blue-400'  },
+  { type: 'Residual',          day: 'Wednesday & Saturday', iconBg: 'bg-gray-50',   iconColor: 'text-gray-500',  borderColor: 'border-gray-400'  },
 ]
-
-const history = ref([
-  {
-    id: 1,
-    type: 'Biodegradable',
-    date: 'June 2, 2026',
-    iconBg: 'bg-green-50',
-    iconColor: 'text-green-600',
-    status: { variant: 'success', label: 'Collected' },
-  },
-  {
-    id: 2,
-    type: 'Non-Biodegradable',
-    date: 'May 30, 2026',
-    iconBg: 'bg-blue-50',
-    iconColor: 'text-blue-500',
-    status: { variant: 'success', label: 'Collected' },
-  },
-  {
-    id: 3,
-    type: 'Residual',
-    date: 'May 28, 2026',
-    iconBg: 'bg-gray-50',
-    iconColor: 'text-gray-500',
-    status: { variant: 'warning', label: 'Pending' },
-  },
-])
 
 const wasteTypes = ['Biodegradable', 'Non-Biodegradable', 'Residual', 'Hazardous', 'Bulk / Large Items']
 
-const form = reactive({ type: '', date: '', notes: '' })
+const form   = reactive({ type: '', date: '', notes: '' })
 const errors = reactive({ type: '', date: '' })
+
+const historyWithMeta = computed(() =>
+  history.value.map(r => ({
+    ...r,
+    status:    statusMap[r.status] ?? { variant: 'default', label: r.status },
+    ...(typeConfig[r.type] ?? { iconBg: 'bg-gray-50', iconColor: 'text-gray-500' }),
+    date: new Date(r.date).toLocaleDateString('en-PH', {
+      year: 'numeric', month: 'long', day: 'numeric'
+    }),
+  }))
+)
 
 function validate() {
   errors.type = !form.type ? 'Waste type is required.' : ''
@@ -184,22 +186,26 @@ async function handleSubmit() {
   if (!validate()) return
   loading.value = true
   try {
-    await new Promise(r => setTimeout(r, 800))
+    const { data } = await api.post('/waste', form)
+    history.value.unshift(data.waste_request)
     toast.success('Pickup request submitted!')
-    history.value.unshift({
-      id: Date.now(),
-      type: form.type,
-      date: new Date(form.date).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }),
-      iconBg: 'bg-green-50',
-      iconColor: 'text-green-600',
-      status: { variant: 'warning', label: 'Pending' },
-    })
     form.type  = ''
     form.date  = ''
     form.notes = ''
     showModal.value = false
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Failed to submit.')
   } finally {
     loading.value = false
   }
 }
+
+onMounted(async () => {
+  try {
+    const { data } = await api.get('/waste')
+    history.value = data.waste_requests
+  } finally {
+    fetching.value = false
+  }
+})
 </script>

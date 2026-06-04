@@ -55,78 +55,70 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   ExclamationTriangleIcon,
   MegaphoneIcon,
   InformationCircleIcon,
   WrenchScrewdriverIcon,
 } from '@heroicons/vue/24/outline'
+import api from '@/services/api'
 import AppBadge from '@/components/common/AppBadge.vue'
 
 const activeFilter = ref('all')
+const loading      = ref(true)
+const alerts       = ref([])
 
-const filters = [
-  { label: 'All',           value: 'all'          },
-  { label: 'Emergency',     value: 'emergency'    },
-  { label: 'Announcement',  value: 'announcement' },
-  { label: 'Maintenance',   value: 'maintenance'  },
-]
-
-const alerts = ref([
-  {
-    id: 1,
-    type: 'emergency',
-    title: 'Typhoon Advisory',
-    message: 'Signal No. 2 raised. Residents near low-lying areas are advised to evacuate to the barangay hall.',
-    date: 'June 4, 2026',
+const typeConfig = {
+  emergency:    {
     icon: ExclamationTriangleIcon,
-    iconBg: 'bg-red-50',
-    iconColor: 'text-red-500',
+    iconBg: 'bg-red-50',    iconColor: 'text-red-500',
     borderColor: 'border-red-400',
-    badge: { variant: 'danger', label: 'Emergency' },
+    badge: { variant: 'danger',  label: 'Emergency'    },
   },
-  {
-    id: 2,
-    type: 'announcement',
-    title: 'Barangay Fiesta 2026',
-    message: 'Join us on June 24 for the annual Barangay Manggahan Fiesta! Activities start at 8AM at the covered court.',
-    date: 'June 3, 2026',
+  announcement: {
     icon: MegaphoneIcon,
-    iconBg: 'bg-green-50',
-    iconColor: 'text-green-600',
+    iconBg: 'bg-green-50',  iconColor: 'text-green-600',
     borderColor: 'border-green-400',
     badge: { variant: 'success', label: 'Announcement' },
   },
-  {
-    id: 3,
-    type: 'maintenance',
-    title: 'Scheduled Water Interruption',
-    message: 'June 5, 8AM–5PM. Purok 1 to 4 affected. Please store enough water in advance.',
-    date: 'June 2, 2026',
+  maintenance:  {
     icon: WrenchScrewdriverIcon,
-    iconBg: 'bg-yellow-50',
-    iconColor: 'text-yellow-500',
+    iconBg: 'bg-yellow-50', iconColor: 'text-yellow-500',
     borderColor: 'border-yellow-400',
-    badge: { variant: 'warning', label: 'Maintenance' },
+    badge: { variant: 'warning', label: 'Maintenance'  },
   },
-  {
-    id: 4,
-    type: 'announcement',
-    title: 'Free Medical Mission',
-    message: 'Free check-up, medicines, and dental services on June 12 at the barangay health center. Open to all residents.',
-    date: 'June 1, 2026',
-    icon: InformationCircleIcon,
-    iconBg: 'bg-blue-50',
-    iconColor: 'text-blue-500',
-    borderColor: 'border-blue-400',
-    badge: { variant: 'info', label: 'Announcement' },
-  },
-])
+}
+
+const filters = [
+  { label: 'All',          value: 'all'          },
+  { label: 'Emergency',    value: 'emergency'    },
+  { label: 'Announcement', value: 'announcement' },
+  { label: 'Maintenance',  value: 'maintenance'  },
+]
+
+const alertsWithConfig = computed(() =>
+  alerts.value.map(a => ({
+    ...a,
+    ...(typeConfig[a.type] ?? typeConfig.announcement),
+    date: new Date(a.created_at).toLocaleDateString('en-PH', {
+      year: 'numeric', month: 'long', day: 'numeric'
+    }),
+  }))
+)
 
 const filtered = computed(() =>
   activeFilter.value === 'all'
-    ? alerts.value
-    : alerts.value.filter(a => a.type === activeFilter.value)
+    ? alertsWithConfig.value
+    : alertsWithConfig.value.filter(a => a.type === activeFilter.value)
 )
+
+onMounted(async () => {
+  try {
+    const { data } = await api.get('/alerts')
+    alerts.value = data.alerts
+  } finally {
+    loading.value = false
+  }
+})
 </script>

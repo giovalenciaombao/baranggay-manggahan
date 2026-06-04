@@ -63,45 +63,51 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { PlusIcon, CalendarDaysIcon } from '@heroicons/vue/24/outline'
+import api from '@/services/api'
 import AppButton from '@/components/common/AppButton.vue'
 import AppBadge from '@/components/common/AppBadge.vue'
 
 const activeFilter = ref('all')
+const loading      = ref(true)
+const appointments = ref([])
+
+const statusMap = {
+  pending:   { variant: 'warning', label: 'Pending'   },
+  approved:  { variant: 'success', label: 'Approved'  },
+  cancelled: { variant: 'danger',  label: 'Cancelled' },
+  completed: { variant: 'default', label: 'Completed' },
+}
 
 const filters = [
-  { label: 'All',       value: 'all'      },
-  { label: 'Pending',   value: 'pending'  },
-  { label: 'Approved',  value: 'approved' },
-  { label: 'Cancelled', value: 'cancelled'},
+  { label: 'All',       value: 'all'       },
+  { label: 'Pending',   value: 'pending'   },
+  { label: 'Approved',  value: 'approved'  },
+  { label: 'Cancelled', value: 'cancelled' },
 ]
 
-const appointments = ref([
-  {
-    id: 1,
-    purpose: 'Barangay ID Renewal',
-    date: 'June 10, 2026',
-    time: '9:00 AM',
-    notes: 'Please bring 1 valid ID.',
-    statusKey: 'approved',
-    status: { variant: 'success', label: 'Approved' },
-  },
-  {
-    id: 2,
-    purpose: 'Certificate of Residency',
-    date: 'June 15, 2026',
-    time: '2:00 PM',
-    notes: 'For employment purposes.',
-    statusKey: 'pending',
-    status: { variant: 'warning', label: 'Pending' },
-  },
-])
+const appointmentsWithMeta = computed(() =>
+  appointments.value.map(a => ({
+    ...a,
+    statusKey: a.status,
+    status:    statusMap[a.status] ?? { variant: 'default', label: a.status },
+  }))
+)
 
 const filtered = computed(() =>
   activeFilter.value === 'all'
-    ? appointments.value
-    : appointments.value.filter(a => a.statusKey === activeFilter.value)
+    ? appointmentsWithMeta.value
+    : appointmentsWithMeta.value.filter(a => a.statusKey === activeFilter.value)
 )
+
+onMounted(async () => {
+  try {
+    const { data } = await api.get('/appointments')
+    appointments.value = data.appointments
+  } finally {
+    loading.value = false
+  }
+})
 </script>

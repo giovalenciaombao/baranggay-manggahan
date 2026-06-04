@@ -63,59 +63,55 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { PlusIcon, ExclamationCircleIcon } from '@heroicons/vue/24/outline'
-import ResidentLayout from '@/layouts/ResidentLayout.vue'
+import api from '@/services/api'
 import AppButton from '@/components/common/AppButton.vue'
 import AppBadge from '@/components/common/AppBadge.vue'
 
-const router = useRouter()
+const router       = useRouter()
 const activeFilter = ref('all')
+const loading      = ref(true)
+const incidents    = ref([])
+
+const statusMap = {
+  pending:   { variant: 'warning', label: 'Pending'      },
+  review:    { variant: 'info',    label: 'Under Review' },
+  resolved:  { variant: 'success', label: 'Resolved'     },
+  dismissed: { variant: 'default', label: 'Dismissed'    },
+}
 
 const filters = [
-  { label: 'All',        value: 'all'        },
-  { label: 'Pending',    value: 'pending'    },
-  { label: 'Under Review', value: 'review'  },
-  { label: 'Resolved',   value: 'resolved'   },
+  { label: 'All',          value: 'all'       },
+  { label: 'Pending',      value: 'pending'   },
+  { label: 'Under Review', value: 'review'    },
+  { label: 'Resolved',     value: 'resolved'  },
 ]
 
-const incidents = ref([
-  {
-    id: 1,
-    title: 'Noise complaint — Purok 3',
-    description: 'Loud music every night past 10PM near the basketball court.',
-    date: 'June 2, 2026',
-    statusKey: 'pending',
-    status: { variant: 'warning', label: 'Pending' },
-    iconBg: 'bg-red-50',
+const incidentsWithMeta = computed(() =>
+  incidents.value.map(i => ({
+    ...i,
+    statusKey: i.status,
+    status:    statusMap[i.status] ?? { variant: 'default', label: i.status },
+    iconBg:    'bg-red-50',
     iconColor: 'text-red-400',
-  },
-  {
-    id: 2,
-    title: 'Illegal dumping near creek',
-    description: 'Someone has been dumping garbage near the creek at Purok 5.',
-    date: 'May 28, 2026',
-    statusKey: 'review',
-    status: { variant: 'info', label: 'Under Review' },
-    iconBg: 'bg-orange-50',
-    iconColor: 'text-orange-400',
-  },
-  {
-    id: 3,
-    title: 'Broken streetlight',
-    description: 'Streetlight at corner of Rizal St. has been out for 2 weeks.',
-    date: 'May 20, 2026',
-    statusKey: 'resolved',
-    status: { variant: 'success', label: 'Resolved' },
-    iconBg: 'bg-green-50',
-    iconColor: 'text-green-500',
-  },
-])
+    date:      new Date(i.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }),
+  }))
+)
 
 const filtered = computed(() =>
   activeFilter.value === 'all'
-    ? incidents.value
-    : incidents.value.filter(i => i.statusKey === activeFilter.value)
+    ? incidentsWithMeta.value
+    : incidentsWithMeta.value.filter(i => i.statusKey === activeFilter.value)
 )
+
+onMounted(async () => {
+  try {
+    const { data } = await api.get('/incidents')
+    incidents.value = data.incidents
+  } finally {
+    loading.value = false
+  }
+})
 </script>

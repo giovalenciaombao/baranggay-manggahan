@@ -105,7 +105,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
   ExclamationCircleIcon,
@@ -117,12 +117,16 @@ import {
   ClipboardDocumentListIcon,
 } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
-import ResidentLayout from '@/layouts/ResidentLayout.vue'
+import api from '@/services/api'
 import StatCard from '@/components/common/StatCard.vue'
 import AppBadge from '@/components/common/AppBadge.vue'
 
-const authStore = useAuthStore()
-const user = computed(() => authStore.user)
+const authStore  = useAuthStore()
+const user       = computed(() => authStore.user)
+const loading    = ref(true)
+const stats      = ref({ total_incidents: 0, total_appointments: 0, total_waste: 0, unread_alerts: 0 })
+const activity   = ref([])
+const alerts     = ref([])
 
 const timeOfDay = computed(() => {
   const h = new Date().getHours()
@@ -131,64 +135,60 @@ const timeOfDay = computed(() => {
   return 'evening'
 })
 
-const stats = [
-  { label: 'Incidents Filed',   value: 3,  icon: ExclamationCircleIcon,       color: 'red'    },
-  { label: 'Appointments',      value: 1,  icon: CalendarDaysIcon,             color: 'green'  },
-  { label: 'Unread Alerts',     value: 2,  icon: BellAlertIcon,                color: 'yellow' },
-  { label: 'Waste Pickups',     value: 5,  icon: TrashIcon,                    color: 'blue'   },
-]
+const statCards = computed(() => [
+  { label: 'Incidents Filed',  value: stats.value.total_incidents,    icon: ExclamationCircleIcon, color: 'red'    },
+  { label: 'Appointments',     value: stats.value.total_appointments,  icon: CalendarDaysIcon,      color: 'green'  },
+  { label: 'Unread Alerts',    value: stats.value.unread_alerts,       icon: BellAlertIcon,         color: 'yellow' },
+  { label: 'Waste Pickups',    value: stats.value.total_waste,         icon: TrashIcon,             color: 'blue'   },
+])
 
-// Placeholder data — will come from API later
-const activity = [
-  {
-    id: 1,
-    icon: ExclamationCircleIcon,
-    iconBg: 'bg-red-50',
-    iconColor: 'text-red-500',
-    title: 'Noise complaint — Purok 3',
-    subtitle: 'Incident Report',
-    date: 'Jun 2',
-    status: { variant: 'warning', label: 'Pending' },
-  },
-  {
-    id: 2,
-    icon: CalendarDaysIcon,
-    iconBg: 'bg-green-50',
-    iconColor: 'text-green-600',
-    title: 'Barangay ID Renewal',
-    subtitle: 'Appointment',
-    date: 'Jun 1',
-    status: { variant: 'success', label: 'Approved' },
-  },
-  {
-    id: 3,
-    icon: ClipboardDocumentListIcon,
-    iconBg: 'bg-blue-50',
-    iconColor: 'text-blue-500',
-    title: 'Waste pickup registered',
-    subtitle: 'Waste Management',
-    date: 'May 30',
-    status: { variant: 'default', label: 'Logged' },
-  },
-]
+const statusVariantMap = {
+  pending:   { variant: 'warning', label: 'Pending'      },
+  review:    { variant: 'info',    label: 'Under Review' },
+  resolved:  { variant: 'success', label: 'Resolved'     },
+  approved:  { variant: 'success', label: 'Approved'     },
+  cancelled: { variant: 'danger',  label: 'Cancelled'    },
+  logged:    { variant: 'default', label: 'Logged'       },
+}
+
+const iconMap = {
+  incident:    { icon: ExclamationCircleIcon, iconBg: 'bg-red-50',   iconColor: 'text-red-500'   },
+  appointment: { icon: CalendarDaysIcon,      iconBg: 'bg-green-50', iconColor: 'text-green-600' },
+}
+
+const alertConfig = {
+  emergency:    { bgClass: 'bg-red-50',    borderClass: 'border-red-200',    iconClass: 'text-red-500',    titleClass: 'text-red-800',    subClass: 'text-red-600'    },
+  announcement: { bgClass: 'bg-green-50',  borderClass: 'border-green-200',  iconClass: 'text-green-600',  titleClass: 'text-green-800',  subClass: 'text-green-600'  },
+  maintenance:  { bgClass: 'bg-yellow-50', borderClass: 'border-yellow-200', iconClass: 'text-yellow-500', titleClass: 'text-yellow-800', subClass: 'text-yellow-600' },
+}
 
 const quickActions = [
-  { label: 'File an Incident',      to: '/portal/incidents/new',     icon: ExclamationCircleIcon  },
-  { label: 'Book Appointment',      to: '/portal/appointments/new',  icon: CalendarDaysIcon       },
-  { label: 'View Alerts',           to: '/portal/alerts',            icon: BellAlertIcon          },
-  { label: 'Waste Registry',        to: '/portal/waste',             icon: TrashIcon              },
+  { label: 'File an Incident', to: '/portal/incidents/new',    icon: ExclamationCircleIcon },
+  { label: 'Book Appointment', to: '/portal/appointments/new', icon: CalendarDaysIcon      },
+  { label: 'View Alerts',      to: '/portal/alerts',           icon: BellAlertIcon         },
+  { label: 'Waste Registry',   to: '/portal/waste',            icon: TrashIcon             },
 ]
 
-const alerts = [
-  {
-    id: 1,
-    title: 'Scheduled Water Interruption',
-    message: 'June 5, 8AM–5PM. Purok 1 to 4 affected.',
-    bgClass: 'bg-yellow-50',
-    borderClass: 'border-yellow-200',
-    iconClass: 'text-yellow-500',
-    titleClass: 'text-yellow-800',
-    subClass: 'text-yellow-600',
-  },
-]
+const alertsWithConfig = computed(() =>
+  alerts.value.map(a => ({ ...a, ...alertConfig[a.type] }))
+)
+
+const activityWithMeta = computed(() =>
+  activity.value.map(a => ({
+    ...a,
+    ...(iconMap[a.type] ?? iconMap.incident),
+    status: statusVariantMap[a.status] ?? { variant: 'default', label: a.status },
+  }))
+)
+
+onMounted(async () => {
+  try {
+    const { data } = await api.get('/resident/dashboard')
+    stats.value    = data.stats
+    activity.value = data.recent_activity
+    alerts.value   = data.active_alerts
+  } finally {
+    loading.value = false
+  }
+})
 </script>

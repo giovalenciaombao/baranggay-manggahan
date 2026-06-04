@@ -118,7 +118,7 @@ import {
   XMarkIcon,
   PaperAirplaneIcon,
 } from '@heroicons/vue/24/outline'
-import ResidentLayout from '@/layouts/ResidentLayout.vue'
+import api from '@/services/api'
 import AppInput from '@/components/common/AppInput.vue'
 import AppButton from '@/components/common/AppButton.vue'
 
@@ -174,9 +174,19 @@ async function handleSubmit() {
   loading.value  = true
   apiError.value = ''
   try {
-    // TODO: replace with actual API call
-    // await incidentService.create(form)
-    await new Promise(r => setTimeout(r, 800)) // mock delay
+    const formData = new FormData()
+    formData.append('title',       form.title)
+    formData.append('category',    form.category)
+    formData.append('description', form.description)
+    formData.append('location',    form.location)
+    if (form.photo) {
+      formData.append('photo', form.photo)
+    }
+
+    await api.post('/incidents', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+
     toast.success('Incident report submitted!')
     router.push('/portal/incidents')
   } catch (err) {

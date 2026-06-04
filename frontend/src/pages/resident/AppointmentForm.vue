@@ -95,6 +95,7 @@ import {
   ExclamationCircleIcon,
   CalendarDaysIcon,
 } from '@heroicons/vue/24/outline'
+import api from '@/services/api'
 import AppInput from '@/components/common/AppInput.vue'
 import AppButton from '@/components/common/AppButton.vue'
 
@@ -117,7 +118,7 @@ const purposes = [
 
 const timeSlots = [
   '8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM',
-  '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM',
+  '1:00 PM', '2:00 PM', '3:00 PM',  '4:00 PM',
 ]
 
 const form = reactive({
@@ -145,8 +146,7 @@ async function handleSubmit() {
   loading.value  = true
   apiError.value = ''
   try {
-    // TODO: replace with actual API call
-    await new Promise(r => setTimeout(r, 800))
+    await api.post('/appointments', form)
     toast.success('Appointment booked! Awaiting confirmation.')
     router.push({ name: 'resident-appointments' })
   } catch (err) {
