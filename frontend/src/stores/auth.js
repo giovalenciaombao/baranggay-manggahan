@@ -7,26 +7,15 @@ export const useAuthStore = defineStore('auth', () => {
   const token   = ref(localStorage.getItem('auth_token') || null)
   const checked = ref(false)
 
-  // ─── Getters ───────────────────────────────────────────────────────────────
   const isAuthenticated = computed(() => !!token.value && !!user.value)
   const isAdmin         = computed(() => user.value?.role === 'admin')
   const isResident      = computed(() => user.value?.role === 'resident')
-  const isApproved      = computed(() => user.value?.status === 'approved')
+  const isApproved      = computed(() => user.value?.status === 'active')
 
-  // ─── Actions ───────────────────────────────────────────────────────────────
   async function login(credentials) {
-    // mock lang muna
-    if (credentials.email === 'admin@manggahan.ph' && credentials.password === 'password') {
-      this.user = { first_name: 'Jonas', last_name: 'Dev', role: 'admin' }
-      this.token = 'mock-token'
-      return { user: this.user }
-    }
-    if (credentials.email === 'resident@manggahan.ph' && credentials.password === 'password') {
-      this.user = { first_name: 'Juan', last_name: 'dela Cruz', role: 'resident' }
-      this.token = 'mock-token'
-      return { user: this.user }
-    }
-    throw { response: { data: { message: 'Invalid credentials.' } } }
+    const { data } = await api.post('/auth/login', credentials)
+    setAuth(data.token, data.user)
+    return data
   }
 
   async function register(payload) {
@@ -38,7 +27,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       await api.post('/auth/logout')
     } catch (_) {
-      // still clear local state even if request fails
+      // still clear even if request fails
     } finally {
       clearAuth()
     }
@@ -47,7 +36,6 @@ export const useAuthStore = defineStore('auth', () => {
   async function checkAuth() {
     checked.value = true
     if (!token.value) return
-
     try {
       const { data } = await api.get('/auth/me')
       user.value = data.user
@@ -62,7 +50,11 @@ export const useAuthStore = defineStore('auth', () => {
     return data
   }
 
-  // ─── Helpers ───────────────────────────────────────────────────────────────
+  async function updatePassword(payload) {
+    const { data } = await api.put('/auth/password', payload)
+    return data
+  }
+
   function setAuth(newToken, newUser) {
     token.value = newToken
     user.value  = newUser
@@ -78,6 +70,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user, token, checked,
     isAuthenticated, isAdmin, isResident, isApproved,
-    login, register, logout, checkAuth, updateProfile
+    login, register, logout, checkAuth, updateProfile, updatePassword,
+    setAuth, clearAuth,
   }
 })
