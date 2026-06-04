@@ -4,10 +4,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class WasteRequest extends Model
+class Alert extends Model
 {
     protected $fillable = [
-        'user_id', 'type', 'date', 'notes', 'status',
+        'user_id', 'type', 'title', 'message',
     ];
 
     public function user() {
