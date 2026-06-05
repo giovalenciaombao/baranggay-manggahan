@@ -9,7 +9,7 @@
     <!-- Stat cards -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
       <StatCard
-        v-for="stat in stats"
+        v-for="stat in statCards"
         :key="stat.label"
         :label="stat.label"
         :value="stat.value"
@@ -58,10 +58,12 @@
             class="flex items-center gap-3"
           >
             <div class="w-8 h-8 rounded-full bg-primary-light flex items-center justify-center flex-shrink-0">
-              <span class="text-xs font-semibold text-primary-dark">{{ initials(user.name) }}</span>
+              <span class="text-xs font-semibold text-primary-dark">{{ initials(user) }}</span>
             </div>
             <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-gray-800 truncate">{{ user.name }}</p>
+              <p class="text-sm font-medium text-gray-800 truncate">
+                {{ user.first_name }} {{ user.last_name }}
+              </p>
               <p class="text-xs text-gray-400">{{ user.email }}</p>
             </div>
             <div class="flex gap-1.5">
