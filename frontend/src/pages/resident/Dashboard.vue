@@ -10,7 +10,7 @@
       <!-- Stat cards -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard
-          v-for="stat in stats"
+          v-for="stat in statCards"
           :key="stat.label"
           :label="stat.label"
           :value="stat.value"
@@ -32,7 +32,7 @@
 
           <ul v-else class="space-y-3">
             <li
-              v-for="item in activity"
+              v-for="item in activityWithMeta"
               :key="item.id"
               class="flex items-start gap-3"
             >
@@ -88,7 +88,7 @@
         </div>
         <div class="space-y-2">
           <div
-            v-for="alert in alerts"
+            v-for="alert in alertsWithConfig"
             :key="alert.id"
             :class="['flex items-start gap-3 p-3 rounded-xl border', alert.bgClass, alert.borderClass]"
           >
