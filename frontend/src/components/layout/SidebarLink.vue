@@ -2,9 +2,9 @@
   <RouterLink
     :to="to"
     class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors duration-150
-           text-primary-light/60 hover:text-white hover:bg-white/10"
-    active-class="!text-white !bg-white/15"
-    :exact="to === '/portal' || to === '/admin'"
+          text-primary-light/60 hover:text-white hover:bg-white/10"
+    active-class=""
+    exact-active-class="!text-white !bg-white/15"
     v-bind="$attrs"
   >
     <!-- Icon -->

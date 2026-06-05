@@ -17,7 +17,6 @@
         </div>
         <div>
           <p class="font-display font-semibold text-white text-sm leading-none">Brgy. Manggahan</p>
-          <p class="text-xs text-primary-light/50 mt-0.5 leading-none">Admin Panel</p>
         </div>
       </div>
 
@@ -104,9 +103,11 @@ const toast     = useToast()
 
 const sidebarOpen = ref(false)
 const currentTitle = computed(() => route.meta?.title || 'Admin')
+
 const initials = computed(() => {
-  const name = authStore.user?.name || ''
-  return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
+  const u = authStore.user
+  if (!u) return '?'
+  return `${u.first_name?.[0] ?? ''}${u.last_name?.[0] ?? ''}`.toUpperCase()
 })
 
 async function handleLogout() {
