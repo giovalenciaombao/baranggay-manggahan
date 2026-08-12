@@ -8,7 +8,10 @@ export default defineConfig({
     vue(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      devOptions: {
+        enabled: true
+      },
+      includeAssets: ['pwa-192x192.png'],
       manifest: {
         name: 'Barangay Manggahan',
         short_name: 'Brgy Manggahan',
