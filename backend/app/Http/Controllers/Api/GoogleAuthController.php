@@ -12,8 +12,11 @@ class GoogleAuthController extends Controller
     // Step 1 — Redirect to Google
     public function redirect()
     {
+        $platform = request('platform', 'web');
+
         $url = Socialite::driver('google')
             ->stateless()
+            ->with(['state' => $platform])
             ->redirect()
             ->getTargetUrl();
 
@@ -23,12 +26,14 @@ class GoogleAuthController extends Controller
     // Step 2 — Handle callback from Google
     public function callback()
     {
+        $platform = request('state', 'web');
+
         try {
             $googleUser = Socialite::driver('google')
                 ->stateless()
                 ->user();
         } catch (\Exception $e) {
-            return redirect(env('FRONTEND_URL', 'http://localhost:5173') . '/login?error=google_failed');
+            return redirect($this->frontendRedirect($platform, '/login?error=google_failed'));
         }
 
         // Find or create user
@@ -44,7 +49,7 @@ class GoogleAuthController extends Controller
 
             // Check if suspended or rejected
             if (in_array($user->status, ['suspended', 'rejected'])) {
-                return redirect(env('FRONTEND_URL', 'http://localhost:5173') . '/login?error=account_suspended');
+                return redirect($this->frontendRedirect($platform, '/login?error=account_suspended'));
             }
 
         } else {
@@ -62,19 +67,19 @@ class GoogleAuthController extends Controller
 
             // Redirect to pending approval if new user
             $token = $user->createToken('auth_token')->plainTextToken;
-            return redirect(
-                env('FRONTEND_URL', 'http://localhost:5173') .
+            return redirect($this->frontendRedirect(
+                $platform,
                 '/pending-approval?token=' . $token
-            );
+            ));
         }
 
         // If existing user — check if pending
         if ($user->status === 'pending') {
             $token = $user->createToken('auth_token')->plainTextToken;
-            return redirect(
-                env('FRONTEND_URL', 'http://localhost:5173') .
+            return redirect($this->frontendRedirect(
+                $platform,
                 '/pending-approval?token=' . $token
-            );
+            ));
         }
 
         // Login — generate token, redirect to frontend
@@ -82,10 +87,23 @@ class GoogleAuthController extends Controller
 
         $redirectPath = $user->role === 'admin' ? '/admin' : '/portal';
 
-        return redirect(
-            env('FRONTEND_URL', 'http://localhost:5173') .
-            '/auth/callback?token=' . $token .
-            '&redirect=' . $redirectPath
-        );
+        return redirect($this->frontendRedirect(
+            $platform,
+            '/auth/callback?token=' . $token . '&redirect=' . $redirectPath
+        ));
+    }
+
+    /**
+     * Build the correct redirect target depending on platform.
+     * Native (Capacitor) uses a custom URL scheme so the OS can
+     * hand control back to the app; web uses the normal frontend URL.
+     */
+    private function frontendRedirect(string $platform, string $path): string
+    {
+        if ($platform === 'native') {
+            return 'barangaymanggahan://auth' . $path;
+        }
+
+        return env('FRONTEND_URL', 'http://localhost:5173') . $path;
     }
 }
