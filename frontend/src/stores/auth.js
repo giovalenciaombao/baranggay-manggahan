@@ -18,6 +18,12 @@ export const useAuthStore = defineStore('auth', () => {
     return data
   }
 
+  async function loginWithToken(newToken) {
+    token.value = newToken
+    localStorage.setItem('auth_token', newToken)
+    return checkAuth()
+  }
+
   async function register(payload) {
     const { data } = await api.post('/auth/register', payload)
     return data
@@ -70,7 +76,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user, token, checked,
     isAuthenticated, isAdmin, isResident, isApproved,
-    login, register, logout, checkAuth, updateProfile, updatePassword,
+    login, loginWithToken, register, logout, checkAuth, updateProfile, updatePassword,
     setAuth, clearAuth,
   }
 })

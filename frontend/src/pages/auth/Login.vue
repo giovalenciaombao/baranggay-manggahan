@@ -88,6 +88,8 @@ import { ref, reactive } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import api from '@/services/api'
+import { Capacitor } from '@capacitor/core'
+import { Browser } from '@capacitor/browser'
 import {
   HomeIcon,
   EyeIcon,
@@ -135,8 +137,14 @@ async function handleLogin() {
 
 async function handleGoogle() {
   try {
-    const { data } = await api.get('/auth/google/redirect')
-    window.location.href = data.url
+    const platform = Capacitor.isNativePlatform() ? 'native' : 'web'
+    const { data } = await api.get('/auth/google/redirect', { params: { platform } })
+
+    if (Capacitor.isNativePlatform()) {
+      await Browser.open({ url: data.url })
+    } else {
+      window.location.href = data.url
+    }
   } catch (_) {
     toast.error('Failed to connect to Google. Please try again.')
   }
