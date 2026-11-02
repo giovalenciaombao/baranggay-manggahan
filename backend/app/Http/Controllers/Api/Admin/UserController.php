@@ -34,7 +34,10 @@ class UserController extends Controller
             'rejection_reason.required_if' => 'Please give a reason for rejecting this registration.',
         ]);
 
-        // A pending resident cannot be approved without proof of residency
+        if ($user->role !== 'resident') {
+            return response()->json(['message' => 'Only resident accounts can be managed here.'], 403);
+        }
+
         if ($user->status === 'pending'
             && $request->status === 'active'
             && !$user->proof_path) {
@@ -54,6 +57,10 @@ class UserController extends Controller
         }
 
         $user->update($data);
+
+        if (in_array($request->status, ['suspended', 'rejected'])) {
+            $user->tokens()->delete();
+        }
 
         $messages = [
             'active'    => 'Your account has been approved! You can now log in.',

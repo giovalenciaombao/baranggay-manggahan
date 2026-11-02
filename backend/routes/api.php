@@ -28,78 +28,80 @@ Route::get('/auth/google/callback',  [GoogleAuthController::class, 'callback']);
 // --- Authenticated Routes ---
 Route::middleware('auth:sanctum')->group(function () {
 
-    // Auth
     Route::post('/auth/logout',  [AuthController::class, 'logout']);
     Route::get('/auth/me',       [AuthController::class, 'me']);
     Route::put('/auth/profile',  [AuthController::class, 'updateProfile']);
     Route::put('/auth/password', [AuthController::class, 'updatePassword']);
     Route::post('/auth/proof',   [AuthController::class, 'uploadProof']);
 
-    // Resident Dashboard
-    Route::get('/resident/dashboard', [DashboardController::class, 'residentDashboard']);
+    Route::middleware('active')->group(function () {
 
-    // Incidents
-    Route::get('/incidents',            [IncidentController::class, 'index']);
-    Route::post('/incidents',           [IncidentController::class, 'store']);
-    Route::get('/incidents/{incident}', [IncidentController::class, 'show']);
+        // Resident Dashboard
+        Route::get('/resident/dashboard', [DashboardController::class, 'residentDashboard']);
 
-    // Appointments
-    Route::get('/appointments',               [AppointmentController::class, 'index']);
-    Route::post('/appointments',              [AppointmentController::class, 'store']);
-    Route::get('/appointments/{appointment}', [AppointmentController::class, 'show']);
+        // Incidents
+        Route::get('/incidents',            [IncidentController::class, 'index']);
+        Route::post('/incidents',           [IncidentController::class, 'store']);
+        Route::get('/incidents/{incident}', [IncidentController::class, 'show']);
 
-    // Waste Requests
-    Route::get('/waste',                [WasteRequestController::class, 'index']);
-    Route::post('/waste',               [WasteRequestController::class, 'store']);
-    Route::get('/waste/{wasteRequest}', [WasteRequestController::class, 'show']);
+        // Appointments
+        Route::get('/appointments',               [AppointmentController::class, 'index']);
+        Route::post('/appointments',              [AppointmentController::class, 'store']);
+        Route::get('/appointments/{appointment}', [AppointmentController::class, 'show']);
 
-    // Garbage truck schedules (upcoming) - residents + admin
-    Route::get('/waste-schedules', [WasteScheduleController::class, 'index']);
+        // Waste Requests
+        Route::get('/waste',                [WasteRequestController::class, 'index']);
+        Route::post('/waste',               [WasteRequestController::class, 'store']);
+        Route::get('/waste/{wasteRequest}', [WasteRequestController::class, 'show']);
 
-    // Notifications
-    Route::get('/notifications',              [NotificationController::class, 'index']);
-    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
-    Route::put('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
-    Route::put('/notifications/read-all',     [NotificationController::class, 'markAllAsRead']);
+        // Garbage truck schedules (upcoming) - residents + admin
+        Route::get('/waste-schedules', [WasteScheduleController::class, 'index']);
 
-    // --- Admin Routes ---
-    Route::middleware('admin')->group(function () {
+        // Notifications
+        Route::get('/notifications',              [NotificationController::class, 'index']);
+        Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::put('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
+        Route::put('/notifications/read-all',     [NotificationController::class, 'markAllAsRead']);
 
-        // Admin Dashboard
-        Route::get('/admin/dashboard', [DashboardController::class, 'index']);
+        // --- Admin Routes ---
+        Route::middleware('admin')->group(function () {
 
-        // User Management
-        Route::get('/admin/users',               [UserController::class, 'index']);
-        Route::put('/admin/users/{user}/status', [UserController::class, 'updateStatus']);
-        Route::get('/admin/users/{user}/proof',  [UserController::class, 'proof']);
+            // Admin Dashboard
+            Route::get('/admin/dashboard', [DashboardController::class, 'index']);
 
-        // Admin - view all records
-        Route::get('/admin/incidents',    [IncidentController::class,    'adminIndex']);
-        Route::get('/admin/appointments', [AppointmentController::class, 'adminIndex']);
-        Route::get('/admin/waste',        [WasteRequestController::class,'adminIndex']);
+            // User Management
+            Route::get('/admin/users',               [UserController::class, 'index']);
+            Route::put('/admin/users/{user}/status', [UserController::class, 'updateStatus']);
+            Route::get('/admin/users/{user}/proof',  [UserController::class, 'proof']);
 
-        // Incidents - admin update
-        Route::put('/incidents/{incident}',       [IncidentController::class,    'update']);
+            // Admin - view all records
+            Route::get('/admin/incidents',    [IncidentController::class,    'adminIndex']);
+            Route::get('/admin/appointments', [AppointmentController::class, 'adminIndex']);
+            Route::get('/admin/waste',        [WasteRequestController::class,'adminIndex']);
 
-        // Appointments - admin update
-        Route::put('/appointments/{appointment}', [AppointmentController::class, 'update']);
+            // Incidents - admin update
+            Route::put('/incidents/{incident}',       [IncidentController::class,    'update']);
 
-        // Alerts - admin CRUD
-        Route::post('/alerts',            [AlertController::class, 'store']);
-        Route::put('/alerts/{alert}',     [AlertController::class, 'update']);
-        Route::delete('/alerts/{alert}',  [AlertController::class, 'destroy']);
+            // Appointments - admin update
+            Route::put('/appointments/{appointment}', [AppointmentController::class, 'update']);
 
-        // Waste - admin update + delete
-        Route::put('/waste/{wasteRequest}',    [WasteRequestController::class, 'update']);
-        Route::delete('/waste/{wasteRequest}', [WasteRequestController::class, 'destroy']);
+            // Alerts - admin CRUD
+            Route::post('/alerts',            [AlertController::class, 'store']);
+            Route::put('/alerts/{alert}',     [AlertController::class, 'update']);
+            Route::delete('/alerts/{alert}',  [AlertController::class, 'destroy']);
 
-        // Garbage truck schedule - admin CRUD
-        Route::get('/admin/waste-schedules',           [WasteScheduleController::class, 'adminIndex']);
-        Route::post('/waste-schedules',                [WasteScheduleController::class, 'store']);
-        Route::put('/waste-schedules/{wasteSchedule}', [WasteScheduleController::class, 'update']);
-        Route::delete('/waste-schedules/{wasteSchedule}', [WasteScheduleController::class, 'destroy']);
+            // Waste - admin update + delete
+            Route::put('/waste/{wasteRequest}',    [WasteRequestController::class, 'update']);
+            Route::delete('/waste/{wasteRequest}', [WasteRequestController::class, 'destroy']);
 
-        // Reports
-        Route::get('/admin/reports/{type}', [ReportController::class, 'index']);
+            // Garbage truck schedule - admin CRUD
+            Route::get('/admin/waste-schedules',              [WasteScheduleController::class, 'adminIndex']);
+            Route::post('/waste-schedules',                   [WasteScheduleController::class, 'store']);
+            Route::put('/waste-schedules/{wasteSchedule}',    [WasteScheduleController::class, 'update']);
+            Route::delete('/waste-schedules/{wasteSchedule}', [WasteScheduleController::class, 'destroy']);
+
+            // Reports
+            Route::get('/admin/reports/{type}', [ReportController::class, 'index']);
+        });
     });
 });
