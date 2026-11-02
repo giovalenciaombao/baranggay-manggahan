@@ -121,6 +121,12 @@ const routes = [
         meta: { title: 'User Management' }
       },
       {
+        path: 'staff',
+        name: 'admin-staff',
+        component: () => import('@/pages/admin/StaffAccounts.vue'),
+        meta: { title: 'Staff Accounts', superAdmin: true }
+      },
+      {
         path: 'incidents',
         name: 'admin-incidents',
         component: () => import('@/pages/admin/Incidents.vue'),
@@ -213,6 +219,10 @@ router.beforeEach(async (to, from, next) => {
     // Role mismatch
     if (to.meta.role && to.meta.role !== userRole) {
       return next(userRole === 'admin' ? '/admin' : '/portal')
+    }
+
+    if (to.meta.superAdmin && !authStore.user?.is_super_admin) {
+      return next('/admin')
     }
   }
 

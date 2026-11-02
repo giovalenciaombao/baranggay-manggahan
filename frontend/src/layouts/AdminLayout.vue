@@ -25,6 +25,13 @@
         <p class="px-3 text-xs font-medium text-primary-light/30 uppercase tracking-wider mb-2">Overview</p>
         <SidebarLink to="/admin"            icon="dashboard"  label="Dashboard"      @click="sidebarOpen = false" />
         <SidebarLink to="/admin/users"      icon="users"      label="User Management"@click="sidebarOpen = false" />
+        <SidebarLink
+          v-if="authStore.user?.is_super_admin"
+          to="/admin/staff"
+          icon="users"
+          label="Staff Accounts"
+          @click="sidebarOpen = false"
+        />
 
         <p class="px-3 text-xs font-medium text-primary-light/30 uppercase tracking-wider mt-4 mb-2">Modules</p>
         <SidebarLink to="/admin/incidents"    icon="alert"    label="Incidents"       @click="sidebarOpen = false" />
@@ -45,7 +52,9 @@
           </div>
           <div class="min-w-0">
             <p class="text-white text-sm font-medium truncate">{{ fullName }}</p>
-            <span class="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full">Admin</span>
+            <span class="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full">
+              {{ authStore.user?.is_super_admin ? 'Super Admin' : 'Admin' }}
+            </span>
           </div>
         </div>
         <button @click="handleLogout" class="w-full btn-ghost text-primary-light/70 hover:text-white text-sm justify-start px-2">
