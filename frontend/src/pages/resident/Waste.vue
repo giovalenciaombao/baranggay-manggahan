@@ -12,6 +12,41 @@
       </AppButton>
     </div>
 
+    <!-- Garbage truck announcements -->
+    <div class="card rounded-2xl p-5">
+      <div class="flex items-center gap-2 mb-4">
+        <TruckIcon class="w-5 h-5 text-primary" />
+        <h2 class="text-sm font-semibold text-primary-dark">Garbage Truck Announcements</h2>
+      </div>
+
+      <div v-if="announcements.length === 0" class="text-center py-6 text-gray-400 text-sm">
+        No upcoming truck announcements.
+      </div>
+
+      <div v-else class="space-y-3">
+        <div
+          v-for="a in announcements"
+          :key="a.id"
+          class="flex items-start gap-3 rounded-xl border border-green-100 bg-green-50/50 p-3"
+        >
+          <div class="w-9 h-9 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+            <TruckIcon class="w-4 h-4 text-green-600" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-sm font-semibold text-gray-800">{{ a.waste_type }}</p>
+              <AppBadge :variant="a.dayVariant" class="flex-shrink-0">{{ a.dayLabel }}</AppBadge>
+            </div>
+            <p class="text-xs text-gray-600 mt-0.5">
+              {{ a.dateText }}<span v-if="a.timeText"> · {{ a.timeText }}</span>
+            </p>
+            <p class="text-xs text-gray-400">{{ a.area || 'Whole barangay' }}</p>
+            <p v-if="a.notes" class="text-xs text-gray-500 mt-1 leading-relaxed">{{ a.notes }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Schedule cards -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
       <div
@@ -126,18 +161,19 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
-import { PlusIcon, TrashIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import { PlusIcon, TrashIcon, XMarkIcon, TruckIcon } from '@heroicons/vue/24/outline'
 import api from '@/services/api'
 import AppButton from '@/components/common/AppButton.vue'
 import AppBadge from '@/components/common/AppBadge.vue'
 import AppInput from '@/components/common/AppInput.vue'
 
-const toast     = useToast()
-const showModal = ref(false)
-const loading   = ref(false)
-const fetching  = ref(true)
-const today     = new Date().toISOString().split('T')[0]
-const history   = ref([])
+const toast         = useToast()
+const showModal     = ref(false)
+const loading       = ref(false)
+const fetching      = ref(true)
+const today         = new Date().toISOString().split('T')[0]
+const history       = ref([])
+const announcementsRaw = ref([])
 
 const statusMap = {
   pending:   { variant: 'warning', label: 'Pending'   },
@@ -165,6 +201,43 @@ const wasteTypes = ['Biodegradable', 'Non-Biodegradable', 'Residual', 'Hazardous
 const form   = reactive({ type: '', date: '', notes: '' })
 const errors = reactive({ type: '', date: '' })
 
+// ─── Truck announcements helpers ───────────────────────────
+function localDateStr(d = new Date()) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function parseDate(str) {
+  const [y, m, d] = String(str).slice(0, 10).split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+function formatTime(str) {
+  const [h, m] = String(str).slice(0, 5).split(':').map(Number)
+  const d = new Date()
+  d.setHours(h, m, 0, 0)
+  return d.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })
+}
+
+const announcements = computed(() => {
+  const base = parseDate(localDateStr())
+  return announcementsRaw.value.map(a => {
+    const n = Math.round((parseDate(a.collection_date) - base) / 86400000)
+    return {
+      ...a,
+      dateText: parseDate(a.collection_date).toLocaleDateString('en-PH', {
+        weekday: 'short', year: 'numeric', month: 'long', day: 'numeric',
+      }),
+      timeText:   a.collection_time ? formatTime(a.collection_time) : '',
+      dayLabel:   n === 0 ? 'Today' : n === 1 ? 'Tomorrow' : `In ${n} days`,
+      dayVariant: n <= 1 ? 'warning' : 'info',
+    }
+  })
+})
+
+// ─── Pickup request history ────────────────────────────────
 const historyWithMeta = computed(() =>
   history.value.map(r => ({
     ...r,
@@ -206,6 +279,13 @@ onMounted(async () => {
     history.value = data.waste_requests
   } finally {
     fetching.value = false
+  }
+
+  try {
+    const { data } = await api.get('/waste-schedules')
+    announcementsRaw.value = data.schedules
+  } catch (_) {
+    // announcements are optional; ignore errors
   }
 })
 </script>

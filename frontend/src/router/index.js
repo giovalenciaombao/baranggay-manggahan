@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const routes = [
-  // ─── Public / Guest ────────────────────────────────────────────────────────
+  // --- Public / Guest ---
   {
     path: '/',
     component: () => import('@/layouts/GuestLayout.vue'),
@@ -45,7 +45,7 @@ const routes = [
     ]
   },
 
-  // ─── Resident Portal ───────────────────────────────────────────────────────
+  // --- Resident Portal ---
   {
     path: '/portal',
     component: () => import('@/layouts/ResidentLayout.vue'),
@@ -102,7 +102,7 @@ const routes = [
     ]
   },
 
-  // ─── Admin Dashboard ───────────────────────────────────────────────────────
+  // --- Admin Dashboard ---
   {
     path: '/admin',
     component: () => import('@/layouts/AdminLayout.vue'),
@@ -145,6 +145,12 @@ const routes = [
         meta: { title: 'Waste Management' }
       },
       {
+        path: 'waste-schedules',
+        name: 'admin-waste-schedules',
+        component: () => import('@/pages/admin/WasteSchedules.vue'),
+        meta: { title: 'Garbage Truck Schedule' }
+      },
+      {
         path: 'reports',
         name: 'admin-reports',
         component: () => import('@/pages/admin/Reports.vue'),
@@ -153,7 +159,7 @@ const routes = [
     ]
   },
 
-  // ─── Catch-all 404 ────────────────────────────────────────────────────────
+  // --- Catch-all 404 ---
   {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
@@ -171,7 +177,7 @@ const router = createRouter({
   }
 })
 
-// ─── Navigation Guards ────────────────────────────────────────────────────────
+// --- Navigation Guards ---
 router.beforeEach(async (to, from, next) => {
   // Update page title
   document.title = to.meta.title
@@ -188,7 +194,7 @@ router.beforeEach(async (to, from, next) => {
   const isAuthenticated = authStore.isAuthenticated
   const userRole = authStore.user?.role
 
-  // Guest-only routes (login, register) — redirect if already logged in
+  // Guest-only routes (login, register) - redirect if already logged in
   if (to.meta.guestOnly && isAuthenticated) {
     return next(userRole === 'admin' ? '/admin' : '/portal')
   }
