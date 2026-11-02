@@ -4,7 +4,6 @@
     <!-- Header -->
     <div class="flex items-center justify-between gap-3">
       <div>
-        <h1 class="text-xl font-semibold text-primary-dark">Garbage Truck Schedule</h1>
         <p class="text-sm text-gray-400 mt-0.5">
           Announce when the garbage truck will arrive. Residents are notified automatically.
         </p>
