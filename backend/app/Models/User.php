@@ -14,6 +14,7 @@ class User extends Authenticatable
 {
     use HasApiTokens, Notifiable;
 
+    // is_super_admin is intentionally NOT fillable
     protected $fillable = [
         'first_name', 'last_name', 'email',
         'contact_number', 'address', 'password',
@@ -31,6 +32,7 @@ class User extends Authenticatable
         'password'           => 'hashed',
         'proof_submitted_at' => 'datetime',
         'verified_at'        => 'datetime',
+        'is_super_admin'     => 'boolean',
     ];
 
     // Relations

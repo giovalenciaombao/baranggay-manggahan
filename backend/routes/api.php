@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\AlertController;
 use App\Http\Controllers\Api\WasteRequestController;
 use App\Http\Controllers\Api\WasteScheduleController;
 use App\Http\Controllers\Api\Admin\UserController;
+use App\Http\Controllers\Api\Admin\StaffController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\ReportController;
 use App\Http\Controllers\Api\NotificationController;
@@ -28,12 +29,14 @@ Route::get('/auth/google/callback',  [GoogleAuthController::class, 'callback']);
 // --- Authenticated Routes ---
 Route::middleware('auth:sanctum')->group(function () {
 
+    // Auth: available to any logged-in user (including pending ones)
     Route::post('/auth/logout',  [AuthController::class, 'logout']);
     Route::get('/auth/me',       [AuthController::class, 'me']);
     Route::put('/auth/profile',  [AuthController::class, 'updateProfile']);
     Route::put('/auth/password', [AuthController::class, 'updatePassword']);
     Route::post('/auth/proof',   [AuthController::class, 'uploadProof']);
 
+    // Everything below requires an ACTIVE (approved) account
     Route::middleware('active')->group(function () {
 
         // Resident Dashboard
@@ -102,6 +105,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
             // Reports
             Route::get('/admin/reports/{type}', [ReportController::class, 'index']);
+
+            // --- Super admin only: staff accounts ---
+            Route::middleware('super_admin')->group(function () {
+                Route::get('/admin/staff',                    [StaffController::class, 'index']);
+                Route::post('/admin/staff',                   [StaffController::class, 'store']);
+                Route::put('/admin/staff/{user}/status',      [StaffController::class, 'updateStatus']);
+                Route::put('/admin/staff/{user}/password',    [StaffController::class, 'resetPassword']);
+            });
         });
     });
 });
