@@ -4,7 +4,6 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-xl font-semibold text-primary-dark">Alerts & Announcements</h1>
         <p class="text-sm text-gray-400 mt-0.5">Post and manage barangay alerts.</p>
       </div>
       <AppButton variant="primary" size="sm" @click="openModal()">

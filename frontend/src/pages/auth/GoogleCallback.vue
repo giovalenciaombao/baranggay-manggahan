@@ -23,6 +23,13 @@ const router    = useRouter()
 const authStore = useAuthStore()
 const toast     = useToast()
 
+const errorMessages = {
+  google_failed:      'Google sign-in failed. Please try again.',
+  account_suspended:  'Your account has been suspended or rejected.',
+  google_unverified:  'Your Google email is not verified. Please use a verified Google account.',
+  admin_use_password: 'Staff accounts must sign in with email and password.',
+}
+
 onMounted(async () => {
   const params   = new URLSearchParams(window.location.search)
   const token    = params.get('token')
@@ -30,14 +37,8 @@ onMounted(async () => {
   const error    = params.get('error')
 
   // Handle errors
-  if (error === 'google_failed') {
-    toast.error('Google sign-in failed. Please try again.')
-    router.push('/login')
-    return
-  }
-
-  if (error === 'account_suspended') {
-    toast.error('Your account has been suspended.')
+  if (error) {
+    toast.error(errorMessages[error] || 'Google sign-in failed. Please try again.')
     router.push('/login')
     return
   }

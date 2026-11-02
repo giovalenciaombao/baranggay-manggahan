@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-gray-50 flex">
 
-    <!-- ── Sidebar ────────────────────────────────────────────────────────── -->
+    <!-- Sidebar -->
     <aside
       class="fixed inset-y-0 left-0 z-40 w-64 bg-primary-dark flex flex-col
              transition-transform duration-300 ease-in-out
@@ -25,12 +25,27 @@
         <p class="px-3 text-xs font-medium text-primary-light/30 uppercase tracking-wider mb-2">Overview</p>
         <SidebarLink to="/admin"            icon="dashboard"  label="Dashboard"      @click="sidebarOpen = false" />
         <SidebarLink to="/admin/users"      icon="users"      label="User Management"@click="sidebarOpen = false" />
+        <SidebarLink
+          v-if="authStore.user?.is_super_admin"
+          to="/admin/staff"
+          icon="users"
+          label="Staff Accounts"
+          @click="sidebarOpen = false"
+        />
+        <SidebarLink
+          v-if="authStore.user?.is_super_admin"
+          to="/admin/assist-logs"
+          icon="file-text"
+          label="Assist Logs"
+          @click="sidebarOpen = false"
+        />
 
         <p class="px-3 text-xs font-medium text-primary-light/30 uppercase tracking-wider mt-4 mb-2">Modules</p>
-        <SidebarLink to="/admin/incidents"    icon="alert"    label="Incidents"     @click="sidebarOpen = false" />
-        <SidebarLink to="/admin/appointments" icon="calendar" label="Appointments"  @click="sidebarOpen = false" />
-        <SidebarLink to="/admin/alerts"       icon="bell"     label="Alerts"        @click="sidebarOpen = false" />
-        <SidebarLink to="/admin/waste"        icon="recycle"  label="Waste Mgmt"    @click="sidebarOpen = false" />
+        <SidebarLink to="/admin/incidents"    icon="alert"    label="Incidents"       @click="sidebarOpen = false" />
+        <SidebarLink to="/admin/appointments" icon="calendar" label="Appointments"    @click="sidebarOpen = false" />
+        <SidebarLink to="/admin/alerts"       icon="bell"     label="Alerts"          @click="sidebarOpen = false" />
+        <SidebarLink to="/admin/waste"        icon="recycle"  label="Waste Mgmt"      @click="sidebarOpen = false" />
+        <SidebarLink to="/admin/waste-schedules" icon="recycle" label="Truck Schedule" @click="sidebarOpen = false" />
 
         <p class="px-3 text-xs font-medium text-primary-light/30 uppercase tracking-wider mt-4 mb-2">Data</p>
         <SidebarLink to="/admin/reports"    icon="file-text"  label="Reports & CSV"  @click="sidebarOpen = false" />
@@ -43,8 +58,10 @@
             <span class="text-white text-sm font-medium">{{ initials }}</span>
           </div>
           <div class="min-w-0">
-            <p class="text-white text-sm font-medium truncate">{{ authStore.user?.name }}</p>
-            <span class="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full">Admin</span>
+            <p class="text-white text-sm font-medium truncate">{{ fullName }}</p>
+            <span class="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full">
+              {{ authStore.user?.is_super_admin ? 'Super Admin' : 'Admin' }}
+            </span>
           </div>
         </div>
         <button @click="handleLogout" class="w-full btn-ghost text-primary-light/70 hover:text-white text-sm justify-start px-2">
@@ -63,7 +80,7 @@
       @click="sidebarOpen = false"
     />
 
-    <!-- ── Main ────────────────────────────────────────────────────────────── -->
+    <!-- Main -->
     <div class="flex-1 lg:ml-64 flex flex-col min-h-screen">
       <!-- Topbar -->
       <header class="sticky top-0 z-20 bg-white border-b border-gray-100 h-16 flex items-center px-4 sm:px-6 gap-3">
@@ -103,6 +120,12 @@ const toast     = useToast()
 
 const sidebarOpen = ref(false)
 const currentTitle = computed(() => route.meta?.title || 'Admin')
+
+const fullName = computed(() => {
+  const u = authStore.user
+  if (!u) return ''
+  return `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim()
+})
 
 const initials = computed(() => {
   const u = authStore.user

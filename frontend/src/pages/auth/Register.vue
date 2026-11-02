@@ -17,7 +17,9 @@
         <!-- Pending approval notice -->
         <div class="flex items-start gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-5">
           <InformationCircleIcon class="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-          <p class="text-sm text-green-800">Your account will be reviewed by a barangay admin before activation.</p>
+          <p class="text-sm text-green-800">
+            Upload a Barangay ID or billing statement so a barangay admin can verify that you live in Barangay Manggahan before your account is activated.
+          </p>
         </div>
 
         <!-- API error -->
@@ -70,6 +72,54 @@
             :error="errors.address"
             required
           />
+
+          <!-- Proof of residency -->
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">
+              Proof of residency <span class="text-red-500">*</span>
+            </label>
+
+            <select
+              v-model="form.proof_type"
+              class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary mb-1"
+            >
+              <option value="">Select document type</option>
+              <option value="barangay_id">Barangay ID</option>
+              <option value="billing_statement">Billing statement</option>
+            </select>
+            <p v-if="errors.proof_type" class="text-xs text-red-500 mb-2">{{ errors.proof_type }}</p>
+
+            <label
+              class="mt-2 flex flex-col items-center justify-center gap-1 border-2 border-dashed rounded-xl px-4 py-5 cursor-pointer hover:bg-gray-50 transition-colors"
+              :class="errors.proof ? 'border-red-300' : 'border-gray-200'"
+            >
+              <ArrowUpTrayIcon class="w-5 h-5 text-gray-400" />
+              <span class="text-sm text-gray-600 text-center break-all">
+                {{ proofFile ? proofFile.name : 'Tap to upload a photo or PDF' }}
+              </span>
+              <span class="text-xs text-gray-400">JPG, PNG or PDF, up to 5 MB</span>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,application/pdf"
+                class="hidden"
+                @change="onProofChange"
+              />
+            </label>
+
+            <img
+              v-if="proofPreview"
+              :src="proofPreview"
+              alt="Proof preview"
+              class="mt-2 max-h-40 mx-auto rounded-lg border border-gray-200 object-contain"
+            />
+            <p v-if="errors.proof" class="text-xs text-red-500 mt-1">{{ errors.proof }}</p>
+            <p class="text-xs text-gray-400 mt-1.5">
+              Used only to verify residency. Only barangay admins can view it.
+            </p>
+          </div>
+
+          <!-- Data privacy consent -->
+          <PrivacyConsent v-model="consent" :error="errors.consent" />
 
           <AppInput
             v-model="form.password"
@@ -144,7 +194,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onBeforeUnmount } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import api from '@/services/api'
@@ -155,20 +205,29 @@ import {
   ExclamationCircleIcon,
   InformationCircleIcon,
   UserPlusIcon,
+  ArrowUpTrayIcon,
 } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
 import AppInput from '@/components/common/AppInput.vue'
 import AppButton from '@/components/common/AppButton.vue'
 import GoogleIcon from '@/components/common/GoogleIcon.vue'
+import PrivacyConsent from '@/components/common/PrivacyConsent.vue'
 
 const authStore = useAuthStore()
 const router    = useRouter()
 const toast     = useToast()
 
-const loading     = ref(false)
+const MAX_PROOF_BYTES = 5 * 1024 * 1024
+const ALLOWED_TYPES   = ['image/jpeg', 'image/png', 'application/pdf']
+
+const loading      = ref(false)
 const showPassword = ref(false)
 const showConfirm  = ref(false)
-const apiError    = ref('')
+const apiError     = ref('')
+
+const proofFile    = ref(null)
+const proofPreview = ref('')
+const consent      = ref(false)
 
 const form = reactive({
   first_name:            '',
@@ -176,6 +235,7 @@ const form = reactive({
   email:                 '',
   contact_number:        '',
   address:               '',
+  proof_type:            '',
   password:              '',
   password_confirmation: '',
 })
@@ -186,9 +246,44 @@ const errors = reactive({
   email:                 '',
   contact_number:        '',
   address:               '',
+  proof_type:            '',
+  proof:                 '',
+  consent:               '',
   password:              '',
   password_confirmation: '',
 })
+
+function clearPreview() {
+  if (proofPreview.value) URL.revokeObjectURL(proofPreview.value)
+  proofPreview.value = ''
+}
+
+function onProofChange(e) {
+  const file = e.target.files?.[0]
+  errors.proof = ''
+  clearPreview()
+  proofFile.value = null
+
+  if (!file) return
+
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    errors.proof = 'Only JPG, PNG or PDF files are allowed.'
+    e.target.value = ''
+    return
+  }
+  if (file.size > MAX_PROOF_BYTES) {
+    errors.proof = 'File is too large. Maximum is 5 MB.'
+    e.target.value = ''
+    return
+  }
+
+  proofFile.value = file
+  if (file.type.startsWith('image/')) {
+    proofPreview.value = URL.createObjectURL(file)
+  }
+}
+
+onBeforeUnmount(clearPreview)
 
 function validate() {
   errors.first_name            = !form.first_name            ? 'First name is required.'       : ''
@@ -196,6 +291,9 @@ function validate() {
   errors.email                 = !form.email                 ? 'Email is required.'            : ''
   errors.contact_number        = !form.contact_number        ? 'Contact number is required.'   : ''
   errors.address               = !form.address               ? 'Address is required.'          : ''
+  errors.proof_type            = !form.proof_type            ? 'Select a document type.'       : ''
+  if (!proofFile.value && !errors.proof) errors.proof = 'Please upload your proof of residency.'
+  errors.consent               = !consent.value              ? 'Kailangan mong pumayag para magpatuloy.' : ''
   errors.password              = form.password.length < 8    ? 'At least 8 characters.'        : ''
   errors.password_confirmation = form.password !== form.password_confirmation
                                   ? 'Passwords do not match.' : ''
@@ -207,9 +305,21 @@ async function handleRegister() {
   loading.value  = true
   apiError.value = ''
   try {
-    await authStore.register(form)
+    const fd = new FormData()
+    Object.entries(form).forEach(([key, value]) => fd.append(key, value))
+    fd.append('proof', proofFile.value)
+    fd.append('privacy_consent', consent.value ? '1' : '0')
+
+    await authStore.register(fd)
     router.push('/pending-approval')
   } catch (err) {
+    const serverErrors = err.response?.data?.errors
+    if (serverErrors) {
+      Object.keys(serverErrors).forEach((key) => {
+        if (key === 'privacy_consent') errors.consent = serverErrors[key][0]
+        else if (key in errors) errors[key] = serverErrors[key][0]
+      })
+    }
     apiError.value = err.response?.data?.message || 'Registration failed. Please try again.'
   } finally {
     loading.value = false

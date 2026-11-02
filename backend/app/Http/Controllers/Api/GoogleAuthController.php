@@ -9,7 +9,6 @@ use Illuminate\Support\Str;
 
 class GoogleAuthController extends Controller
 {
-    // Step 1 — Redirect to Google
     public function redirect()
     {
         $platform = request('platform', 'web');
@@ -23,7 +22,6 @@ class GoogleAuthController extends Controller
         return response()->json(['url' => $url]);
     }
 
-    // Step 2 — Handle callback from Google
     public function callback()
     {
         $platform = request('state', 'web');
@@ -33,30 +31,35 @@ class GoogleAuthController extends Controller
                 ->stateless()
                 ->user();
         } catch (\Exception $e) {
-            return redirect($this->frontendRedirect($platform, '/login?error=google_failed'));
+            return redirect($this->frontendRedirect($platform, '/auth/callback?error=google_failed'));
         }
 
-        // Find or create user
+        $raw = is_array($googleUser->user ?? null) ? $googleUser->user : [];
+        if (!filter_var($raw['email_verified'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+            return redirect($this->frontendRedirect($platform, '/auth/callback?error=google_unverified'));
+        }
+
         $user = User::where('google_id', $googleUser->getId())
             ->orWhere('email', $googleUser->getEmail())
             ->first();
 
         if ($user) {
-            // Update google_id if not yet set
+            if ($user->role === 'admin') {
+                return redirect($this->frontendRedirect($platform, '/auth/callback?error=admin_use_password'));
+            }
+
             if (!$user->google_id) {
                 $user->update(['google_id' => $googleUser->getId()]);
             }
 
-            // Check if suspended or rejected
             if (in_array($user->status, ['suspended', 'rejected'])) {
-                return redirect($this->frontendRedirect($platform, '/login?error=account_suspended'));
+                return redirect($this->frontendRedirect($platform, '/auth/callback?error=account_suspended'));
             }
 
         } else {
-            // Register new user via Google
             $user = User::create([
-                'first_name' => $googleUser->user['given_name']  ?? $googleUser->getName(),
-                'last_name'  => $googleUser->user['family_name'] ?? '',
+                'first_name' => $raw['given_name']  ?? $googleUser->getName(),
+                'last_name'  => $raw['family_name'] ?? '',
                 'email'      => $googleUser->getEmail(),
                 'google_id'  => $googleUser->getId(),
                 'avatar'     => $googleUser->getAvatar(),
@@ -65,7 +68,6 @@ class GoogleAuthController extends Controller
                 'status'     => 'pending',
             ]);
 
-            // Redirect to pending approval if new user
             $token = $user->createToken('auth_token')->plainTextToken;
             return redirect($this->frontendRedirect(
                 $platform,
@@ -73,7 +75,6 @@ class GoogleAuthController extends Controller
             ));
         }
 
-        // If existing user — check if pending
         if ($user->status === 'pending') {
             $token = $user->createToken('auth_token')->plainTextToken;
             return redirect($this->frontendRedirect(
@@ -82,22 +83,14 @@ class GoogleAuthController extends Controller
             ));
         }
 
-        // Login — generate token, redirect to frontend
         $token = $user->createToken('auth_token')->plainTextToken;
-
-        $redirectPath = $user->role === 'admin' ? '/admin' : '/portal';
 
         return redirect($this->frontendRedirect(
             $platform,
-            '/auth/callback?token=' . $token . '&redirect=' . $redirectPath
+            '/auth/callback?token=' . $token . '&redirect=/portal'
         ));
     }
 
-    /**
-     * Build the correct redirect target depending on platform.
-     * Native (Capacitor) uses a custom URL scheme so the OS can
-     * hand control back to the app; web uses the normal frontend URL.
-     */
     private function frontendRedirect(string $platform, string $path): string
     {
         if ($platform === 'native') {

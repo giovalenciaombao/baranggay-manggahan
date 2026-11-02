@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Incident;
 use App\Models\Appointment;
 use App\Models\Alert;
+use App\Models\Notification;
 use App\Models\WasteRequest;
 
 class DashboardController extends Controller
@@ -64,9 +65,14 @@ class DashboardController extends Controller
             'total_incidents'    => Incident::where('user_id', $user->id)->count(),
             'total_appointments' => Appointment::where('user_id', $user->id)->count(),
             'total_waste'        => WasteRequest::where('user_id', $user->id)->count(),
-            'unread_alerts'      => Alert::count(),
+            // Alerts this resident was notified about and has not opened yet
+            'unread_alerts'      => Notification::where('user_id', $user->id)
+                ->where('type', 'alert')
+                ->whereNull('read_at')
+                ->count(),
         ];
 
+        // Sort by the real timestamp, then format the date for display
         $recentActivity = collect()
             ->merge(
                 Incident::where('user_id', $user->id)->latest()->take(3)->get()
@@ -75,7 +81,7 @@ class DashboardController extends Controller
                         'type'     => 'incident',
                         'title'    => $i->title,
                         'subtitle' => 'Incident Report',
-                        'date'     => $i->created_at->format('M d'),
+                        'created'  => $i->created_at,
                         'status'   => $i->status,
                     ])
             )
@@ -86,12 +92,20 @@ class DashboardController extends Controller
                         'type'     => 'appointment',
                         'title'    => $a->purpose,
                         'subtitle' => 'Appointment',
-                        'date'     => $a->created_at->format('M d'),
+                        'created'  => $a->created_at,
                         'status'   => $a->status,
                     ])
             )
-            ->sortByDesc('date')
+            ->sortByDesc(fn($row) => $row['created']->timestamp)
             ->take(5)
+            ->map(fn($row) => [
+                'id'       => $row['id'],
+                'type'     => $row['type'],
+                'title'    => $row['title'],
+                'subtitle' => $row['subtitle'],
+                'date'     => $row['created']->format('M d'),
+                'status'   => $row['status'],
+            ])
             ->values();
 
         $activeAlerts = Alert::latest()->take(3)->get();

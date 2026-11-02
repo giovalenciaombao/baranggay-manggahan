@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\WasteRequest;
+use App\Services\AssistService;
 use Illuminate\Http\Request;
 
 class WasteRequestController extends Controller
@@ -56,6 +57,9 @@ class WasteRequestController extends Controller
         ]);
 
         $wasteRequest->update(['status' => $request->status]);
+
+        // Tell the resident who is assisting them (only if new / changed)
+        AssistService::record($request->user(), $wasteRequest->user_id, 'waste', $wasteRequest->id, $request->status);
 
         $labels = [
             'pending'   => 'Pending',

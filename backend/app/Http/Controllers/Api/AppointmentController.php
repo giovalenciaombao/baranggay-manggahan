@@ -5,12 +5,32 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\Notification;
+use App\Services\AssistService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class AppointmentController extends Controller
 {
-    // Resident: sariling appointments lang
+    private const BOOKED_MESSAGE = 'That time slot is already booked. Please choose another time or date.';
+
+    private function occupyingStatuses(): array
+    {
+        return [
+            Appointment::STATUS_PENDING,
+            Appointment::STATUS_APPROVED,
+            Appointment::STATUS_RESCHEDULED,
+        ];
+    }
+
+    private function slotTaken(string $date, string $time, ?int $ignoreId = null): bool
+    {
+        return Appointment::whereDate('date', $date)
+            ->where('time', $time)
+            ->whereIn('status', $this->occupyingStatuses())
+            ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
+            ->exists();
+    }
+
     public function index(Request $request)
     {
         $appointments = Appointment::where('user_id', $request->user()->id)
@@ -18,6 +38,23 @@ class AppointmentController extends Controller
             ->get();
 
         return response()->json(['appointments' => $appointments]);
+    }
+
+    public function availability(Request $request)
+    {
+        $request->validate(['date' => 'required|date']);
+
+        $taken = Appointment::whereDate('date', $request->date)
+            ->whereIn('status', $this->occupyingStatuses())
+            ->pluck('time')
+            ->unique()
+            ->values();
+
+        return response()->json([
+            'date'  => $request->date,
+            'slots' => Appointment::TIME_SLOTS,
+            'taken' => $taken,
+        ]);
     }
 
     public function store(Request $request)
@@ -28,6 +65,13 @@ class AppointmentController extends Controller
             'time'    => ['required', 'string', Rule::in(Appointment::TIME_SLOTS)],
             'notes'   => 'nullable|string',
         ]);
+
+        if ($this->slotTaken($request->date, $request->time)) {
+            return response()->json([
+                'message' => self::BOOKED_MESSAGE,
+                'errors'  => ['time' => [self::BOOKED_MESSAGE]],
+            ], 422);
+        }
 
         $appointment = Appointment::create([
             'user_id' => $request->user()->id,
@@ -75,6 +119,15 @@ class AppointmentController extends Controller
 
         $status = $request->status;
 
+        // Rescheduling into a slot that is already taken by someone else
+        if ($status === Appointment::STATUS_RESCHEDULED
+            && $this->slotTaken($request->date, $request->time, $appointment->id)) {
+            return response()->json([
+                'message' => self::BOOKED_MESSAGE,
+                'errors'  => ['time' => [self::BOOKED_MESSAGE]],
+            ], 422);
+        }
+
         if ($status === Appointment::STATUS_RESCHEDULED) {
             if (!$appointment->original_date) {
                 $appointment->original_date = $appointment->date;
@@ -93,6 +146,8 @@ class AppointmentController extends Controller
         }
 
         $appointment->save();
+
+        AssistService::record($request->user(), $appointment->user_id, 'appointment', $appointment->id, $status);
 
         $this->notifyResident($appointment, $status);
 

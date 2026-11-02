@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Incident;
+use App\Services\AssistService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -67,6 +68,9 @@ class IncidentController extends Controller
 
         $incident->update(['status' => $request->status]);
 
+        // Tell the resident who is assisting them (only if new / changed)
+        AssistService::record($request->user(), $incident->user_id, 'incident', $incident->id, $request->status);
+
         // Status labels
         $labels = [
             'pending'   => 'Pending',
@@ -89,7 +93,8 @@ class IncidentController extends Controller
             'incident' => $incident,
         ]);
     }
-    // Admin — view all incidents
+
+    // Admin - view all incidents
     public function adminIndex()
     {
         $incidents = Incident::with('user:id,first_name,last_name')
