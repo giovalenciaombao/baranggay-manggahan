@@ -62,6 +62,9 @@
           <p v-if="errors.proof" class="text-xs text-red-500 mt-1">{{ errors.proof }}</p>
         </div>
 
+        <!-- Data privacy consent -->
+        <PrivacyConsent v-model="consent" :error="errors.consent" />
+
         <AppButton type="submit" variant="primary" class="w-full" :loading="loading">
           Submit proof
         </AppButton>
@@ -95,6 +98,7 @@ import { useToast } from 'vue-toastification'
 import { ArrowUpTrayIcon, ExclamationCircleIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
 import AppButton from '@/components/common/AppButton.vue'
+import PrivacyConsent from '@/components/common/PrivacyConsent.vue'
 
 const authStore = useAuthStore()
 const route     = useRoute()
@@ -111,7 +115,8 @@ const apiError = ref('')
 const proofType    = ref('')
 const proofFile    = ref(null)
 const proofPreview = ref('')
-const errors       = reactive({ proof_type: '', proof: '' })
+const consent      = ref(false)
+const errors       = reactive({ proof_type: '', proof: '', consent: '' })
 
 // Logged in (Google) + pending + wala pang proof
 const needsProof = computed(() =>
@@ -172,7 +177,8 @@ onBeforeUnmount(clearPreview)
 async function submitProof() {
   errors.proof_type = proofType.value ? '' : 'Select a document type.'
   if (!proofFile.value && !errors.proof) errors.proof = 'Please upload your proof of residency.'
-  if (errors.proof_type || errors.proof) return
+  errors.consent = consent.value ? '' : 'Kailangan mong pumayag para magpatuloy.'
+  if (errors.proof_type || errors.proof || errors.consent) return
 
   loading.value  = true
   apiError.value = ''
@@ -180,14 +186,16 @@ async function submitProof() {
     const fd = new FormData()
     fd.append('proof_type', proofType.value)
     fd.append('proof', proofFile.value)
+    fd.append('privacy_consent', consent.value ? '1' : '0')
 
     await authStore.uploadProof(fd)
     clearPreview()
     toast.success('Proof submitted! Please wait for admin review.')
   } catch (err) {
     const serverErrors = err.response?.data?.errors
-    if (serverErrors?.proof)      errors.proof      = serverErrors.proof[0]
-    if (serverErrors?.proof_type) errors.proof_type = serverErrors.proof_type[0]
+    if (serverErrors?.proof)           errors.proof      = serverErrors.proof[0]
+    if (serverErrors?.proof_type)      errors.proof_type = serverErrors.proof_type[0]
+    if (serverErrors?.privacy_consent) errors.consent    = serverErrors.privacy_consent[0]
     apiError.value = err.response?.data?.message || 'Upload failed. Please try again.'
   } finally {
     loading.value = false

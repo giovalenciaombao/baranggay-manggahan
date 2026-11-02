@@ -32,6 +32,13 @@
           label="Staff Accounts"
           @click="sidebarOpen = false"
         />
+        <SidebarLink
+          v-if="authStore.user?.is_super_admin"
+          to="/admin/assist-logs"
+          icon="file-text"
+          label="Assist Logs"
+          @click="sidebarOpen = false"
+        />
 
         <p class="px-3 text-xs font-medium text-primary-light/30 uppercase tracking-wider mt-4 mb-2">Modules</p>
         <SidebarLink to="/admin/incidents"    icon="alert"    label="Incidents"       @click="sidebarOpen = false" />

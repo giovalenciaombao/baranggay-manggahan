@@ -127,6 +127,12 @@ const routes = [
         meta: { title: 'Staff Accounts', superAdmin: true }
       },
       {
+        path: 'assist-logs',
+        name: 'admin-assist-logs',
+        component: () => import('@/pages/admin/AssistLogs.vue'),
+        meta: { title: 'Assist Logs', superAdmin: true }
+      },
+      {
         path: 'incidents',
         name: 'admin-incidents',
         component: () => import('@/pages/admin/Incidents.vue'),
@@ -221,6 +227,7 @@ router.beforeEach(async (to, from, next) => {
       return next(userRole === 'admin' ? '/admin' : '/portal')
     }
 
+    // Super admin only pages
     if (to.meta.superAdmin && !authStore.user?.is_super_admin) {
       return next('/admin')
     }

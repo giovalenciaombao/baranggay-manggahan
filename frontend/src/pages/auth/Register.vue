@@ -118,6 +118,9 @@
             </p>
           </div>
 
+          <!-- Data privacy consent -->
+          <PrivacyConsent v-model="consent" :error="errors.consent" />
+
           <AppInput
             v-model="form.password"
             label="Password"
@@ -208,6 +211,7 @@ import { useAuthStore } from '@/stores/auth'
 import AppInput from '@/components/common/AppInput.vue'
 import AppButton from '@/components/common/AppButton.vue'
 import GoogleIcon from '@/components/common/GoogleIcon.vue'
+import PrivacyConsent from '@/components/common/PrivacyConsent.vue'
 
 const authStore = useAuthStore()
 const router    = useRouter()
@@ -223,6 +227,7 @@ const apiError     = ref('')
 
 const proofFile    = ref(null)
 const proofPreview = ref('')
+const consent      = ref(false)
 
 const form = reactive({
   first_name:            '',
@@ -243,6 +248,7 @@ const errors = reactive({
   address:               '',
   proof_type:            '',
   proof:                 '',
+  consent:               '',
   password:              '',
   password_confirmation: '',
 })
@@ -287,6 +293,7 @@ function validate() {
   errors.address               = !form.address               ? 'Address is required.'          : ''
   errors.proof_type            = !form.proof_type            ? 'Select a document type.'       : ''
   if (!proofFile.value && !errors.proof) errors.proof = 'Please upload your proof of residency.'
+  errors.consent               = !consent.value              ? 'Kailangan mong pumayag para magpatuloy.' : ''
   errors.password              = form.password.length < 8    ? 'At least 8 characters.'        : ''
   errors.password_confirmation = form.password !== form.password_confirmation
                                   ? 'Passwords do not match.' : ''
@@ -301,6 +308,7 @@ async function handleRegister() {
     const fd = new FormData()
     Object.entries(form).forEach(([key, value]) => fd.append(key, value))
     fd.append('proof', proofFile.value)
+    fd.append('privacy_consent', consent.value ? '1' : '0')
 
     await authStore.register(fd)
     router.push('/pending-approval')
@@ -308,7 +316,8 @@ async function handleRegister() {
     const serverErrors = err.response?.data?.errors
     if (serverErrors) {
       Object.keys(serverErrors).forEach((key) => {
-        if (key in errors) errors[key] = serverErrors[key][0]
+        if (key === 'privacy_consent') errors.consent = serverErrors[key][0]
+        else if (key in errors) errors[key] = serverErrors[key][0]
       })
     }
     apiError.value = err.response?.data?.message || 'Registration failed. Please try again.'
