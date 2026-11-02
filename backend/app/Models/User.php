@@ -21,6 +21,7 @@ class User extends Authenticatable
         'role', 'status', 'google_id', 'avatar',
         'proof_type', 'proof_path', 'proof_submitted_at',
         'rejection_reason', 'verified_by', 'verified_at',
+        'privacy_consent_at',
     ];
 
     // proof_path stays server-side only; the file is served through an admin-only route
@@ -32,6 +33,7 @@ class User extends Authenticatable
         'password'           => 'hashed',
         'proof_submitted_at' => 'datetime',
         'verified_at'        => 'datetime',
+        'privacy_consent_at' => 'datetime',
         'is_super_admin'     => 'boolean',
     ];
 

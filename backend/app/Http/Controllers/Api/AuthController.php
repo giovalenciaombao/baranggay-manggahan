@@ -13,18 +13,20 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'first_name'     => 'required|string|max:255',
-            'last_name'      => 'required|string|max:255',
-            'email'          => 'required|email|unique:users',
-            'contact_number' => 'required|string',
-            'address'        => 'required|string',
-            'password'       => 'required|min:8|confirmed',
-            'proof_type'     => 'required|in:barangay_id,billing_statement',
-            'proof'          => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'first_name'      => 'required|string|max:255',
+            'last_name'       => 'required|string|max:255',
+            'email'           => 'required|email|unique:users',
+            'contact_number'  => 'required|string',
+            'address'         => 'required|string',
+            'password'        => 'required|min:8|confirmed',
+            'proof_type'      => 'required|in:barangay_id,billing_statement',
+            'proof'           => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'privacy_consent' => 'accepted',
         ], [
-            'proof.required' => 'Please upload your proof of residency.',
-            'proof.mimes'    => 'Proof must be a JPG, PNG or PDF file.',
-            'proof.max'      => 'Proof must not be larger than 5 MB.',
+            'proof.required'            => 'Please upload your proof of residency.',
+            'proof.mimes'               => 'Proof must be a JPG, PNG or PDF file.',
+            'proof.max'                 => 'Proof must not be larger than 5 MB.',
+            'privacy_consent.accepted'  => 'Kailangan mong pumayag sa data privacy notice para magpatuloy.',
         ]);
 
         // Private disk (storage/app/private) - NOT publicly accessible
@@ -42,6 +44,7 @@ class AuthController extends Controller
             'proof_type'         => $request->proof_type,
             'proof_path'         => $path,
             'proof_submitted_at' => now(),
+            'privacy_consent_at' => now(),
         ]);
 
         return response()->json([
@@ -62,12 +65,14 @@ class AuthController extends Controller
         }
 
         $request->validate([
-            'proof_type' => 'required|in:barangay_id,billing_statement',
-            'proof'      => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'proof_type'      => 'required|in:barangay_id,billing_statement',
+            'proof'           => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'privacy_consent' => 'accepted',
         ], [
-            'proof.required' => 'Please upload your proof of residency.',
-            'proof.mimes'    => 'Proof must be a JPG, PNG or PDF file.',
-            'proof.max'      => 'Proof must not be larger than 5 MB.',
+            'proof.required'            => 'Please upload your proof of residency.',
+            'proof.mimes'               => 'Proof must be a JPG, PNG or PDF file.',
+            'proof.max'                 => 'Proof must not be larger than 5 MB.',
+            'privacy_consent.accepted'  => 'Kailangan mong pumayag sa data privacy notice para magpatuloy.',
         ]);
 
         if ($user->proof_path) {
@@ -80,6 +85,7 @@ class AuthController extends Controller
             'proof_type'         => $request->proof_type,
             'proof_path'         => $path,
             'proof_submitted_at' => now(),
+            'privacy_consent_at' => now(),
         ]);
 
         return response()->json([

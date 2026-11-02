@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\WasteRequestController;
 use App\Http\Controllers\Api\WasteScheduleController;
 use App\Http\Controllers\Api\Admin\UserController;
 use App\Http\Controllers\Api\Admin\StaffController;
+use App\Http\Controllers\Api\Admin\AssistLogController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\ReportController;
 use App\Http\Controllers\Api\NotificationController;
@@ -47,8 +48,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/incidents',           [IncidentController::class, 'store']);
         Route::get('/incidents/{incident}', [IncidentController::class, 'show']);
 
-        // Appointments
+        // Appointments (availability must come before the {appointment} wildcard)
         Route::get('/appointments',               [AppointmentController::class, 'index']);
+        Route::get('/appointments/availability',  [AppointmentController::class, 'availability']);
         Route::post('/appointments',              [AppointmentController::class, 'store']);
         Route::get('/appointments/{appointment}', [AppointmentController::class, 'show']);
 
@@ -106,12 +108,14 @@ Route::middleware('auth:sanctum')->group(function () {
             // Reports
             Route::get('/admin/reports/{type}', [ReportController::class, 'index']);
 
-            // --- Super admin only: staff accounts ---
+            // --- Super admin only: staff accounts + audit trail ---
             Route::middleware('super_admin')->group(function () {
                 Route::get('/admin/staff',                    [StaffController::class, 'index']);
                 Route::post('/admin/staff',                   [StaffController::class, 'store']);
                 Route::put('/admin/staff/{user}/status',      [StaffController::class, 'updateStatus']);
                 Route::put('/admin/staff/{user}/password',    [StaffController::class, 'resetPassword']);
+
+                Route::get('/admin/assist-logs',              [AssistLogController::class, 'index']);
             });
         });
     });
