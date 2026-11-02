@@ -12,9 +12,9 @@ use App\Http\Controllers\Api\Admin\ReportController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\GoogleAuthController;
 
-// ─── Public Routes ────────────────────────────────────────────────────────────
-Route::post('/auth/register', [AuthController::class, 'register']);
-Route::post('/auth/login',    [AuthController::class, 'login']);
+// --- Public Routes ---
+Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
+Route::post('/auth/login',    [AuthController::class, 'login'])->middleware('throttle:10,1');
 
 // Public alerts (visible on homepage)
 Route::get('/alerts',         [AlertController::class, 'index']);
@@ -24,7 +24,7 @@ Route::get('/alerts/{alert}', [AlertController::class, 'show']);
 Route::get('/auth/google/redirect',  [GoogleAuthController::class, 'redirect']);
 Route::get('/auth/google/callback',  [GoogleAuthController::class, 'callback']);
 
-// ─── Authenticated Routes ─────────────────────────────────────────────────────
+// --- Authenticated Routes ---
 Route::middleware('auth:sanctum')->group(function () {
 
     // Auth
@@ -32,6 +32,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/me',       [AuthController::class, 'me']);
     Route::put('/auth/profile',  [AuthController::class, 'updateProfile']);
     Route::put('/auth/password', [AuthController::class, 'updatePassword']);
+    Route::post('/auth/proof',   [AuthController::class, 'uploadProof']);
 
     // Resident Dashboard
     Route::get('/resident/dashboard', [DashboardController::class, 'residentDashboard']);
@@ -57,7 +58,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
     Route::put('/notifications/read-all',     [NotificationController::class, 'markAllAsRead']);
 
-    // ─── Admin Routes ─────────────────────────────────────────────────────────
+    // --- Admin Routes ---
     Route::middleware('admin')->group(function () {
 
         // Admin Dashboard
@@ -66,24 +67,25 @@ Route::middleware('auth:sanctum')->group(function () {
         // User Management
         Route::get('/admin/users',               [UserController::class, 'index']);
         Route::put('/admin/users/{user}/status', [UserController::class, 'updateStatus']);
+        Route::get('/admin/users/{user}/proof',  [UserController::class, 'proof']);
 
-        // Admin — view all records
+        // Admin - view all records
         Route::get('/admin/incidents',    [IncidentController::class,    'adminIndex']);
         Route::get('/admin/appointments', [AppointmentController::class, 'adminIndex']);
         Route::get('/admin/waste',        [WasteRequestController::class,'adminIndex']);
 
-        // Incidents — admin update
+        // Incidents - admin update
         Route::put('/incidents/{incident}',       [IncidentController::class,    'update']);
 
-        // Appointments — admin update
+        // Appointments - admin update
         Route::put('/appointments/{appointment}', [AppointmentController::class, 'update']);
 
-        // Alerts — admin CRUD
+        // Alerts - admin CRUD
         Route::post('/alerts',            [AlertController::class, 'store']);
         Route::put('/alerts/{alert}',     [AlertController::class, 'update']);
         Route::delete('/alerts/{alert}',  [AlertController::class, 'destroy']);
 
-        // Waste — admin update + delete
+        // Waste - admin update + delete
         Route::put('/waste/{wasteRequest}',    [WasteRequestController::class, 'update']);
         Route::delete('/waste/{wasteRequest}', [WasteRequestController::class, 'destroy']);
 

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
 {
@@ -26,15 +28,38 @@ class UserController extends Controller
     public function updateStatus(Request $request, User $user)
     {
         $request->validate([
-            'status' => 'required|in:active,suspended,rejected',
+            'status'           => 'required|in:active,suspended,rejected',
+            'rejection_reason' => 'required_if:status,rejected|nullable|string|max:500',
+        ], [
+            'rejection_reason.required_if' => 'Please give a reason for rejecting this registration.',
         ]);
 
-        $user->update(['status' => $request->status]);
+        // A pending resident cannot be approved without proof of residency
+        if ($user->status === 'pending'
+            && $request->status === 'active'
+            && !$user->proof_path) {
+            return response()->json([
+                'message' => 'Cannot approve: this resident has not submitted proof of residency.',
+            ], 422);
+        }
+
+        $data = [
+            'status'           => $request->status,
+            'rejection_reason' => $request->status === 'rejected' ? $request->rejection_reason : null,
+        ];
+
+        if (in_array($request->status, ['active', 'rejected'])) {
+            $data['verified_by'] = $request->user()->id;
+            $data['verified_at'] = now();
+        }
+
+        $user->update($data);
 
         $messages = [
             'active'    => 'Your account has been approved! You can now log in.',
             'suspended' => 'Your account has been suspended. Please contact the barangay office.',
-            'rejected'  => 'Your account registration has been rejected.',
+            'rejected'  => 'Your account registration has been rejected.'
+                . ($request->rejection_reason ? " Reason: {$request->rejection_reason}" : ''),
         ];
 
         $titles = [
@@ -43,7 +68,7 @@ class UserController extends Controller
             'rejected'  => 'Account Rejected',
         ];
 
-        \App\Models\Notification::create([
+        Notification::create([
             'user_id' => $user->id,
             'type'    => 'user',
             'title'   => $titles[$request->status],
@@ -52,7 +77,17 @@ class UserController extends Controller
 
         return response()->json([
             'message' => 'User status updated.',
-            'user'    => $user,
+            'user'    => $user->fresh(),
         ]);
+    }
+
+    // Admin-only: stream the proof file (private disk)
+    public function proof(User $user)
+    {
+        if (!$user->proof_path || !Storage::disk('local')->exists($user->proof_path)) {
+            return response()->json(['message' => 'No proof uploaded.'], 404);
+        }
+
+        return Storage::disk('local')->response($user->proof_path);
     }
 }

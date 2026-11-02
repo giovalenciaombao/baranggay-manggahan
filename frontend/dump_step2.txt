@@ -1,0 +1,320 @@
+﻿===== src\pages\admin\Users.vue =====
+<template>
+  <div class="p-4 sm:p-6 space-y-5">
+
+    <!-- Header -->
+    <div>
+      <p class="text-sm text-gray-400 mt-0.5">Manage resident accounts and approvals.</p>
+    </div>
+
+    <!-- Filters -->
+    <div class="flex flex-wrap gap-2">
+      <button
+        v-for="f in filters"
+        :key="f.value"
+        @click="activeFilter = f.value"
+        :class="[
+          'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+          activeFilter === f.value
+            ? 'bg-primary text-white'
+            : 'bg-white border border-gray-200 text-gray-500 hover:border-primary'
+        ]"
+      >
+        {{ f.label }}
+        <span
+          v-if="f.count"
+          :class="[
+            'ml-1.5 px-1.5 py-0.5 rounded-full text-xs',
+            activeFilter === f.value ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+          ]"
+        >{{ f.count }}</span>
+      </button>
+    </div>
+
+    <!-- Search -->
+    <div class="relative">
+      <MagnifyingGlassIcon class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+      <input
+        v-model="search"
+        type="text"
+        placeholder="Search by name or email..."
+        class="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary"
+      />
+    </div>
+
+    <!-- Empty -->
+    <div v-if="filtered.length === 0" class="card rounded-2xl p-10 text-center text-gray-400 text-sm">
+      No users found.
+    </div>
+
+    <!-- List -->
+    <div v-else class="space-y-3">
+      <div
+        v-for="user in filtered"
+        :key="user.id"
+        class="card rounded-2xl p-4 flex items-center gap-4"
+      >
+        <!-- Avatar -->
+        <div class="w-10 h-10 rounded-full bg-primary-light flex items-center justify-center flex-shrink-0">
+          <span class="text-sm font-semibold text-primary-dark">{{ initials(user.name) }}</span>
+        </div>
+
+        <!-- Info -->
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-gray-800 truncate">{{ user.name }}</p>
+          <p class="text-xs text-gray-400 truncate">{{ user.email }}</p>
+          <p class="text-xs text-gray-300 mt-0.5">{{ user.address }}</p>
+        </div>
+
+        <!-- Status badge -->
+        <AppBadge :variant="user.status.variant" class="flex-shrink-0 hidden sm:inline-flex">
+          {{ user.status.label }}
+        </AppBadge>
+
+        <!-- Actions -->
+        <div class="flex gap-1.5 flex-shrink-0">
+          <template v-if="user.statusKey === 'pending'">
+            <button
+              @click="updateStatus(user.id, 'active')"
+              class="p-2 rounded-lg bg-green-50 hover:bg-green-100 transition-colors"
+              title="Approve"
+            >
+              <CheckIcon class="w-4 h-4 text-green-600" />
+            </button>
+            <button
+              @click="updateStatus(user.id, 'rejected')"
+              class="p-2 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
+              title="Reject"
+            >
+              <XMarkIcon class="w-4 h-4 text-red-500" />
+            </button>
+          </template>
+          <template v-else>
+            <button
+              @click="updateStatus(user.id, user.statusKey === 'active' ? 'suspended' : 'active')"
+              :class="[
+                'p-2 rounded-lg transition-colors',
+                user.statusKey === 'active'
+                  ? 'bg-yellow-50 hover:bg-yellow-100'
+                  : 'bg-green-50 hover:bg-green-100'
+              ]"
+              :title="user.statusKey === 'active' ? 'Suspend' : 'Reactivate'"
+            >
+              <NoSymbolIcon v-if="user.statusKey === 'active'" class="w-4 h-4 text-yellow-500" />
+              <CheckIcon v-else class="w-4 h-4 text-green-600" />
+            </button>
+          </template>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useToast } from 'vue-toastification'
+import {
+  MagnifyingGlassIcon,
+  CheckIcon,
+  XMarkIcon,
+  NoSymbolIcon,
+} from '@heroicons/vue/24/outline'
+import api from '@/services/api'
+import AppBadge from '@/components/common/AppBadge.vue'
+
+const toast        = useToast()
+const activeFilter = ref('all')
+const search       = ref('')
+const loading      = ref(true)
+const users        = ref([])
+
+const statusMap = {
+  active:    { variant: 'success', label: 'Active'    },
+  pending:   { variant: 'warning', label: 'Pending'   },
+  rejected:  { variant: 'danger',  label: 'Rejected'  },
+  suspended: { variant: 'default', label: 'Suspended' },
+}
+
+const filters = computed(() => [
+  { label: 'All',       value: 'all',       count: users.value.length },
+  { label: 'Pending',   value: 'pending',   count: users.value.filter(u => u.status === 'pending').length   || null },
+  { label: 'Active',    value: 'active',    count: null },
+  { label: 'Suspended', value: 'suspended', count: null },
+  { label: 'Rejected',  value: 'rejected',  count: null },
+])
+
+const usersWithMeta = computed(() =>
+  users.value.map(u => ({
+    ...u,
+    name:      `${u.first_name} ${u.last_name}`,
+    statusKey: u.status,
+    status:    statusMap[u.status] ?? { variant: 'default', label: u.status },
+  }))
+)
+
+const filtered = computed(() => {
+  let list = usersWithMeta.value
+  if (activeFilter.value !== 'all') {
+    list = list.filter(u => u.statusKey === activeFilter.value)
+  }
+  if (search.value.trim()) {
+    const q = search.value.toLowerCase()
+    list = list.filter(u =>
+      u.name.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q)
+    )
+  }
+  return list
+})
+
+function initials(name) {
+  return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+}
+
+async function updateStatus(id, newStatus) {
+  try {
+    await api.put(`/admin/users/${id}/status`, { status: newStatus })
+    const user = users.value.find(u => u.id === id)
+    if (user) user.status = newStatus
+    const messages = {
+      active:    'User approved!',
+      rejected:  'User rejected.',
+      suspended: 'User suspended.',
+    }
+    toast.success(messages[newStatus] ?? 'Status updated.')
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Failed to update status.')
+  }
+}
+
+onMounted(async () => {
+  try {
+    const { data } = await api.get('/admin/users')
+    users.value = data.users
+  } finally {
+    loading.value = false
+  }
+})
+</script>
+===== src\pages\auth\PendingApproval.vue =====
+<template>
+  <div class="min-h-[60vh] flex flex-col items-center justify-center px-4 text-center gap-4">
+    <div class="w-16 h-16 rounded-2xl bg-yellow-50 flex items-center justify-center">
+      <svg class="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    </div>
+    <h2 class="font-display text-xl font-semibold text-primary-dark">Account Pending Approval</h2>
+    <p class="text-sm text-gray-500 max-w-sm">
+      Your account is currently under review by the barangay admin. You'll receive an email once your account is approved.
+    </p>
+    <button @click="authStore.logout(); $router.push('/login')" class="btn-secondary text-sm">
+      Back to Login
+    </button>
+  </div>
+</template>
+<script setup>
+import { useAuthStore } from '@/stores/auth'
+const authStore = useAuthStore()
+</script>
+
+===== src\pages\auth\GoogleCallback.vue =====
+<template>
+  <div class="min-h-screen flex items-center justify-center bg-primary-light">
+    <div class="text-center">
+      <div class="w-12 h-12 rounded-2xl bg-primary-dark flex items-center justify-center mx-auto mb-4">
+        <svg class="w-6 h-6 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg>
+      </div>
+      <p class="text-sm text-gray-500">Signing you in with Google...</p>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { useToast } from 'vue-toastification'
+import api from '@/services/api'
+
+const router    = useRouter()
+const authStore = useAuthStore()
+const toast     = useToast()
+
+onMounted(async () => {
+  const params   = new URLSearchParams(window.location.search)
+  const token    = params.get('token')
+  const redirect = params.get('redirect')
+  const error    = params.get('error')
+
+  // Handle errors
+  if (error === 'google_failed') {
+    toast.error('Google sign-in failed. Please try again.')
+    router.push('/login')
+    return
+  }
+
+  if (error === 'account_suspended') {
+    toast.error('Your account has been suspended.')
+    router.push('/login')
+    return
+  }
+
+  if (!token) {
+    router.push('/login')
+    return
+  }
+
+  // Set token first
+  localStorage.setItem('auth_token', token)
+
+  // Fetch user data
+  try {
+    const { data } = await api.get('/auth/me')
+    authStore.setAuth(token, data.user)
+    toast.success(`Welcome, ${data.user.first_name}!`)
+    router.push(redirect || (data.user.role === 'admin' ? '/admin' : '/portal'))
+  } catch (_) {
+    localStorage.removeItem('auth_token')
+    toast.error('Something went wrong. Please try again.')
+    router.push('/login')
+  }
+})
+</script>
+===== src\services\api.js =====
+import axios from 'axios'
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  },
+})
+
+// Request interceptor â€” attach token automatically
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('auth_token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+// Response interceptor â€” handle 401 globally
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('auth_token')
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
+
+export default api

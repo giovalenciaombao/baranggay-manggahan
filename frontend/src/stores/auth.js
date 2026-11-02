@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/services/api'
 
+const multipart = { headers: { 'Content-Type': 'multipart/form-data' } }
+
 export const useAuthStore = defineStore('auth', () => {
   const user    = ref(null)
   const token   = ref(localStorage.getItem('auth_token') || null)
@@ -24,8 +26,16 @@ export const useAuthStore = defineStore('auth', () => {
     return checkAuth()
   }
 
+  // payload is FormData (includes the proof file)
   async function register(payload) {
-    const { data } = await api.post('/auth/register', payload)
+    const { data } = await api.post('/auth/register', payload, multipart)
+    return data
+  }
+
+  // For pending (Google) users who still need to submit proof
+  async function uploadProof(payload) {
+    const { data } = await api.post('/auth/proof', payload, multipart)
+    user.value = data.user
     return data
   }
 
@@ -76,7 +86,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user, token, checked,
     isAuthenticated, isAdmin, isResident, isApproved,
-    login, loginWithToken, register, logout, checkAuth, updateProfile, updatePassword,
+    login, loginWithToken, register, uploadProof, logout, checkAuth, updateProfile, updatePassword,
     setAuth, clearAuth,
   }
 })
