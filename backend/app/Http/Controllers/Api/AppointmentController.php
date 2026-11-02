@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\Notification;
+use App\Services\AssistService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -93,6 +94,9 @@ class AppointmentController extends Controller
         }
 
         $appointment->save();
+
+        // Tell the resident who is assisting them (only if new / changed)
+        AssistService::record($request->user(), $appointment->user_id, 'appointment', $appointment->id, $status);
 
         $this->notifyResident($appointment, $status);
 
