@@ -121,6 +121,7 @@ import {
 import api from '@/services/api'
 import AppInput from '@/components/common/AppInput.vue'
 import AppButton from '@/components/common/AppButton.vue'
+import { useFormDraft } from '@/composables/useFormDraft'
 
 const router = useRouter()
 const toast  = useToast()
@@ -139,13 +140,13 @@ const categories = [
   'Others',
 ]
 
-const form = reactive({
+const { form, clearDraft } = useFormDraft('incident', {
   title:       '',
   category:    '',
   description: '',
   location:    '',
-  photo:       null,
 })
+form.photo = null
 
 const errors = reactive({
   title:       '',
@@ -170,7 +171,7 @@ function validate() {
 }
 
 async function handleSubmit() {
-  if (!validate()) return
+  if (loading.value || !validate()) return
   loading.value  = true
   apiError.value = ''
   try {
@@ -187,6 +188,7 @@ async function handleSubmit() {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
 
+    clearDraft()
     toast.success('Incident report submitted!')
     router.push('/portal/incidents')
   } catch (err) {

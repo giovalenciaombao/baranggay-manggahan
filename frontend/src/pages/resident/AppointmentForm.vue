@@ -73,6 +73,7 @@ import {
 import api from '@/services/api'
 import { formatDate } from '@/utils/formatters'
 import AppButton from '@/components/common/AppButton.vue'
+import { useFormDraft } from '@/composables/useFormDraft'
 
 const router = useRouter()
 const toast  = useToast()
@@ -90,7 +91,7 @@ const purposes = [
   'Others',
 ]
 
-const form = reactive({
+const { form, clearDraft } = useFormDraft('appointment', {
   purpose: '',
   notes:   '',
 })
@@ -110,6 +111,7 @@ async function handleSubmit() {
   apiError.value = ''
   try {
     const { data } = await api.post('/appointments', form)
+    clearDraft()
     const { date, time } = data.appointment
     toast.success('Assigned ' + formatDate(date) + ' at ' + time + '. Awaiting approval.')
     router.push({ name: 'resident-appointments' })
