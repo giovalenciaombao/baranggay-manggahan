@@ -7,15 +7,22 @@
     </div>
 
     <!-- Avatar + name -->
-    <div class="card rounded-2xl p-5 flex items-center gap-4">
-      <div class="w-16 h-16 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-        <span class="text-xl font-semibold text-primary-light">{{ initials }}</span>
+    <div class="card rounded-2xl p-5 flex flex-wrap items-center gap-4">
+      <div class="w-16 h-16 rounded-full bg-primary flex items-center justify-center flex-shrink-0 overflow-hidden">
+        <img v-if="photoUrl" :src="photoUrl" alt="Your profile photo" class="h-full w-full object-cover" />
+        <span v-else class="text-xl font-semibold text-primary-light">{{ initials }}</span>
       </div>
-      <div>
+      <div class="min-w-0 flex-1">
         <p class="text-base font-semibold text-primary-dark">{{ user?.first_name }} {{ user?.last_name }}</p>
-        <p class="text-sm text-gray-400">{{ user?.email }}</p>
+        <p class="break-words text-sm text-gray-500">{{ user?.email }}</p>
         <AppBadge variant="success" class="mt-1">Active</AppBadge>
       </div>
+      <AppButton type="button" variant="secondary" :loading="photoUploading" :disabled="photoLoading" @click="photoInput?.click()">
+        <CameraIcon class="h-4 w-4" aria-hidden="true" />
+        Change photo
+      </AppButton>
+      <input ref="photoInput" type="file" accept="image/jpeg,image/png,image/webp" class="hidden" @change="uploadPhoto" />
+      <p v-if="photoError" class="w-full text-sm text-red-600" role="alert">{{ photoError }}</p>
     </div>
 
     <!-- Edit form -->
@@ -153,9 +160,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useToast } from 'vue-toastification'
 import {
+  CameraIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
   EyeIcon,
@@ -170,6 +178,60 @@ import AppBadge from '@/components/common/AppBadge.vue'
 const authStore = useAuthStore()
 const toast     = useToast()
 const user      = computed(() => authStore.user)
+
+const photoInput = ref(null)
+const photoUrl = ref('')
+const photoError = ref('')
+const photoLoading = ref(true)
+const photoUploading = ref(false)
+let disposed = false
+
+function displayPhoto(blob) {
+  if (disposed) return
+  if (photoUrl.value) URL.revokeObjectURL(photoUrl.value)
+  photoUrl.value = URL.createObjectURL(blob)
+}
+
+onMounted(async () => {
+  try {
+    const response = await api.get('/auth/profile/photo', { responseType: 'blob' })
+    if (response.status === 200) displayPhoto(response.data)
+  } catch {
+    photoError.value = 'Could not load your profile photo.'
+  } finally {
+    photoLoading.value = false
+  }
+})
+
+onBeforeUnmount(() => {
+  disposed = true
+  if (photoUrl.value) URL.revokeObjectURL(photoUrl.value)
+})
+
+async function uploadPhoto(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file || photoUploading.value) return
+
+  photoError.value = ''
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
+    photoError.value = 'Choose a JPG, PNG, or WebP image up to 2 MB.'
+    return
+  }
+
+  const formData = new FormData()
+  formData.append('photo', file)
+  photoUploading.value = true
+  try {
+    await api.post('/auth/profile/photo', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+    displayPhoto(file)
+    if (!disposed) toast.success('Profile photo updated.')
+  } catch (error) {
+    photoError.value = error.response?.data?.errors?.photo?.[0] || 'Could not update your profile photo. Try again.'
+  } finally {
+    photoUploading.value = false
+  }
+}
 
 const initials = computed(() => {
   if (!user.value) return '?'

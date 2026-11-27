@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\ReportController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\GoogleAuthController;
+use App\Http\Controllers\Api\ProfilePhotoController;
 
 // --- Public Routes ---
 Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
@@ -37,6 +38,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Everything below requires an ACTIVE (approved) account
     Route::middleware('active')->group(function () {
+        Route::get('/auth/profile/photo', [ProfilePhotoController::class, 'show']);
+        Route::post('/auth/profile/photo', [ProfilePhotoController::class, 'store']);
 
         // Resident Dashboard
         Route::get('/resident/dashboard', [DashboardController::class, 'residentDashboard']);
