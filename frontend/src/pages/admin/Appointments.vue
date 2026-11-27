@@ -188,8 +188,8 @@
               </p>
             </div>
             <div v-if="selectedItem.notes">
-              <p class="text-xs text-gray-400 mb-0.5">Resident Notes</p>
-              <p class="text-gray-700 italic">"{{ selectedItem.notes }}"</p>
+              <p class="text-xs text-gray-500 mb-0.5">Request Details</p>
+              <p class="whitespace-pre-wrap break-words text-gray-700">{{ selectedItem.notes }}</p>
             </div>
             <div v-if="selectedItem.admin_note">
               <p class="text-xs text-gray-400 mb-0.5">Admin Note</p>

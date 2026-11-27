@@ -4,7 +4,7 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <p class="text-sm text-gray-400 mt-0.5">Manage your barangay appointments.</p>
+        <p class="text-sm text-gray-500 mt-0.5">Wait for staff approval, then visit the barangay office at your scheduled date and time.</p>
       </div>
       <RouterLink :to="{ name: 'resident-appointments-new' }">
         <AppButton variant="primary" size="sm">
