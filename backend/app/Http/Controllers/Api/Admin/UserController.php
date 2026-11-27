@@ -9,6 +9,8 @@ use App\Services\AccountMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
+use function Illuminate\Support\defer;
+
 class UserController extends Controller
 {
     public function index(Request $request)
@@ -90,7 +92,8 @@ class UserController extends Controller
         ]);
 
         if ($statusChanged) {
-            AccountMail::send($user, $titles[$request->status], $messages[$request->status]);
+            $status = $request->status;
+            defer(fn () => rescue(fn () => AccountMail::send($user, $titles[$status], $messages[$status])));
         }
 
         return response()->json([

@@ -45,6 +45,11 @@ class RegistrationRetryTest extends TestCase
         $this->getJson('/api/admin/users')->assertJsonPath('users.0.id', $resident->id);
         $this->postJson('/api/auth/register/verify', ['token' => $token, 'code' => $matches[0]])->assertUnprocessable();
 
+        config(['mail.default' => 'missing-test-mailer']);
+        $this->putJson("/api/admin/users/{$resident->id}/status", ['status' => 'active'])
+            ->assertOk()->assertJsonPath('user.status', 'active');
+        $this->assertDatabaseHas('notifications', ['user_id' => $resident->id, 'title' => 'Account Approved']);
+
         $this->assertSame(2, User::count());
         $this->assertSame(1, User::where('email', $email)->count());
     }
