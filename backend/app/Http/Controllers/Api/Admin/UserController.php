@@ -7,12 +7,68 @@ use App\Models\Notification;
 use App\Models\User;
 use App\Services\AccountMail;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 use function Illuminate\Support\defer;
 
 class UserController extends Controller
 {
+    public function bulkApprove(Request $request)
+    {
+        $input = $request->validate([
+            'user_ids' => 'required|array|min:1|max:1000',
+            'user_ids.*' => 'required|integer|min:1|distinct',
+        ]);
+
+        $approved = DB::transaction(function () use ($request, $input) {
+            $approved = [];
+            $verifiedAt = now();
+            $adminId = $request->user()->id;
+            $ids = collect($input['user_ids'])->sort()->values();
+
+            foreach ($ids->chunk(100) as $batch) {
+                $eligible = User::select('id', 'proof_path')->withExists('residencyProof')
+                    ->whereIntegerInRaw('id', $batch->all())
+                    ->where('role', 'resident')
+                    ->where('status', 'pending')
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get()
+                    ->filter(fn (User $user) => $user->has_proof)
+                    ->modelKeys();
+
+                if (!$eligible) {
+                    continue;
+                }
+
+                User::whereIntegerInRaw('id', $eligible)->update([
+                    'status' => 'active',
+                    'rejection_reason' => null,
+                    'verified_by' => $adminId,
+                    'verified_at' => $verifiedAt,
+                ]);
+                Notification::insert(array_map(fn ($id) => [
+                    'user_id' => $id,
+                    'type' => 'user',
+                    'title' => 'Account Approved',
+                    'message' => 'Your account has been approved! You can now log in.',
+                    'created_at' => $verifiedAt,
+                    'updated_at' => $verifiedAt,
+                ], $eligible));
+
+                array_push($approved, ...$eligible);
+            }
+
+            return $approved;
+        }, 3);
+
+        return response()->json([
+            'approved_ids' => $approved,
+            'skipped_count' => count($input['user_ids']) - count($approved),
+        ]);
+    }
+
     public function index(Request $request)
     {
         $users = User::withExists('residencyProof')->where('role', 'resident')
@@ -37,6 +93,14 @@ class UserController extends Controller
             'rejection_reason.required_if' => 'Please give a reason for rejecting this registration.',
         ]);
 
+        return DB::transaction(fn () => $this->changeStatus(
+            $request,
+            User::whereKey($user->id)->lockForUpdate()->firstOrFail(),
+        ));
+    }
+
+    private function changeStatus(Request $request, User $user)
+    {
         if ($user->role !== 'resident') {
             return response()->json(['message' => 'Only resident accounts can be managed here.'], 403);
         }
@@ -79,15 +143,14 @@ class UserController extends Controller
             'rejected'  => 'Account Rejected',
         ];
 
-        Notification::create([
-            'user_id' => $user->id,
-            'type'    => 'user',
-            'title'   => $titles[$request->status],
-            'message' => $messages[$request->status],
-        ]);
-
         if ($statusChanged) {
             $status = $request->status;
+            Notification::create([
+                'user_id' => $user->id,
+                'type'    => 'user',
+                'title'   => $titles[$status],
+                'message' => $messages[$status],
+            ]);
             defer(fn () => rescue(fn () => AccountMail::send($user, $titles[$status], $messages[$status])));
         }
 

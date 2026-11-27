@@ -70,6 +70,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
             // User Management
             Route::get('/admin/users',               [UserController::class, 'index']);
+            Route::post('/admin/users/bulk-approve', [UserController::class, 'bulkApprove']);
             Route::put('/admin/users/{user}/status', [UserController::class, 'updateStatus']);
             Route::get('/admin/users/{user}/proof',  [UserController::class, 'proof']);
 

@@ -41,6 +41,30 @@
       />
     </div>
 
+    <div v-if="showBulkControls && eligibleIds.length" class="card flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center gap-3">
+        <AppButton variant="secondary" size="sm" :disabled="bulkSaving" @click="toggleAllEligible">
+          {{ allEligibleSelected ? 'Clear selection' : 'Select all eligible' }}
+        </AppButton>
+        <span class="text-sm text-gray-600" aria-live="polite">{{ bulkSelection.length }} selected</span>
+      </div>
+      <AppButton size="sm" :disabled="!bulkSelection.length || bulkSelection.length > 1000" :loading="bulkSaving" @click="bulkConfirm = true">
+        Approve selected
+      </AppButton>
+      <p v-if="bulkSelection.length > 1000" class="w-full text-sm text-red-700">Use search to select up to 1,000 residents at a time.</p>
+    </div>
+
+    <AppModal v-model="bulkConfirm" title="Approve resident accounts" :close-on-backdrop="!bulkSaving" :show-close="!bulkSaving">
+      <p class="text-sm text-gray-700">
+        Approve {{ bulkSelection.length }} selected pending {{ bulkSelection.length === 1 ? 'resident' : 'residents' }}?
+        Approved residents can sign in and will receive an in-app notification.
+      </p>
+      <template #footer>
+        <AppButton variant="secondary" :disabled="bulkSaving" @click="bulkConfirm = false">Cancel</AppButton>
+        <AppButton :loading="bulkSaving" @click="bulkApprove">Confirm approval</AppButton>
+      </template>
+    </AppModal>
+
     <!-- Empty -->
     <div v-if="filtered.length === 0" class="card rounded-2xl p-10 text-center text-gray-400 text-sm">
       No users found.
@@ -53,6 +77,9 @@
         :key="user.id"
         class="card rounded-2xl p-4 flex items-center gap-4"
       >
+        <input v-if="showBulkControls && user.statusKey === 'pending' && user.has_proof"
+          v-model="selectedPendingIds" :value="user.id" :aria-label="'Select ' + user.name"
+          :disabled="bulkSaving" type="checkbox" class="h-4 w-4 shrink-0 accent-primary" />
         <!-- Avatar -->
         <div class="w-10 h-10 rounded-full bg-primary-light flex items-center justify-center flex-shrink-0">
           <span class="text-sm font-semibold text-primary-dark">{{ initials(user.name) }}</span>
@@ -268,7 +295,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import {
@@ -281,6 +308,8 @@ import {
 import api from '@/services/api'
 import { useFormDraft } from '@/composables/useFormDraft'
 import AppBadge from '@/components/common/AppBadge.vue'
+import AppButton from '@/components/common/AppButton.vue'
+import AppModal from '@/components/common/AppModal.vue'
 
 const toast        = useToast()
 const route        = useRoute()
@@ -289,6 +318,9 @@ const activeFilter = ref('all')
 const search       = ref('')
 const loading      = ref(true)
 const users        = ref([])
+const selectedPendingIds = ref([])
+const bulkConfirm = ref(false)
+const bulkSaving = ref(false)
 
 // Review modal state
 const selectedId   = ref(null)
@@ -345,6 +377,42 @@ const filtered = computed(() => {
   }
   return list
 })
+
+const showBulkControls = computed(() => ['all', 'pending'].includes(activeFilter.value))
+const eligibleIds = computed(() => filtered.value.filter(user => user.statusKey === 'pending' && user.has_proof).map(user => user.id))
+const bulkSelection = computed(() => {
+  const selected = new Set(selectedPendingIds.value)
+  return eligibleIds.value.filter(id => selected.has(id))
+})
+const allEligibleSelected = computed(() => eligibleIds.value.length > 0 && bulkSelection.value.length === eligibleIds.value.length)
+
+watch([activeFilter, search], () => {
+  selectedPendingIds.value = []
+})
+
+function toggleAllEligible() {
+  selectedPendingIds.value = allEligibleSelected.value ? [] : [...eligibleIds.value]
+}
+
+async function bulkApprove() {
+  if (bulkSaving.value || !bulkSelection.value.length || bulkSelection.value.length > 1000) return
+  bulkSaving.value = true
+  try {
+    const { data } = await api.post('/admin/users/bulk-approve', { user_ids: bulkSelection.value })
+    const approved = new Set(data.approved_ids)
+    users.value = users.value.map(user => approved.has(user.id)
+      ? { ...user, status: 'active', rejection_reason: null }
+      : user)
+    selectedPendingIds.value = []
+    bulkConfirm.value = false
+    if (approved.size) toast.success(approved.size + ' resident account(s) approved.')
+    if (data.skipped_count) toast.info(data.skipped_count + ' account(s) skipped because they were no longer eligible.')
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Could not complete the bulk approval. Refresh the list before retrying.')
+  } finally {
+    bulkSaving.value = false
+  }
+}
 
 const selectedUser = computed(() =>
   selectedId.value ? usersWithMeta.value.find(u => u.id === selectedId.value) ?? null : null
