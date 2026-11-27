@@ -21,6 +21,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Mail::extend('brevo', fn (array $config) => new BrevoTransport((string) ($config['key'] ?? '')));
+        Mail::extend('brevo', fn (array $config) => new BrevoTransport(trim((string) ($config['key'] ?? ''))));
     }
 }

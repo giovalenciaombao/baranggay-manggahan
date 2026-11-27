@@ -49,8 +49,14 @@ class BrevoTransport extends AbstractTransport
 
         $messageId = $response->json('messageId');
         if (!$response->successful() || !is_string($messageId) || $messageId === '') {
+            $providerMessage = strtolower((string) $response->json('message', ''));
             $reason = match ($response->status()) {
-                401, 403 => 'Check the API key permissions and Brevo authorized IP settings.',
+                401, 403 => match (true) {
+                    str_contains($providerMessage, 'ip address') => 'Brevo blocked this outbound IP address. Check Brevo Authorized IPs.',
+                    str_contains($providerMessage, 'key not found'),
+                    str_contains($providerMessage, 'invalid api key') => 'Brevo did not recognize the API key. Check BREVO_API_KEY on Render.',
+                    default => 'Check the API key permissions and Brevo authorized IP settings.',
+                },
                 400, 422 => 'Check the verified sender address and transactional email settings.',
                 429 => 'Brevo is rate-limiting requests.',
                 default => 'Brevo did not accept the email.',
