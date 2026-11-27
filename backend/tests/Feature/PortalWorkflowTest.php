@@ -29,7 +29,7 @@ class PortalWorkflowTest extends TestCase
 
         $this->postJson('/api/appointments', ['purpose' => 'Barangay Clearance'])
             ->assertCreated()
-            ->assertJsonPath('appointment.date', '2026-11-30')
+            ->assertJsonPath('appointment.date', '2026-12-01')
             ->assertJsonPath('appointment.time', '8:00 AM');
     }
 

@@ -19,6 +19,11 @@ class AppointmentController extends Controller
     private const BOOKED_MESSAGE = 'That time slot is already booked. Please choose another time or date.';
     private const TIMEZONE = 'Asia/Manila';
 
+    private function isHoliday(Carbon $date): bool
+    {
+        return in_array($date->toDateString(), config('appointment_holidays'), true);
+    }
+
     private function occupyingStatuses(): array
     {
         return [
@@ -50,7 +55,7 @@ class AppointmentController extends Controller
     {
         $request->validate(['date' => 'required|date_format:Y-m-d']);
         $date = Carbon::parse($request->date, self::TIMEZONE);
-        if ($date->isWeekend()) {
+        if ($date->isWeekend() || $this->isHoliday($date)) {
             return response()->json(['date' => $request->date, 'slots' => [], 'taken' => []]);
         }
 
@@ -95,7 +100,7 @@ class AppointmentController extends Controller
                 ->groupBy(fn (Appointment $appointment) => $appointment->date->toDateString());
 
             while ($date <= $end) {
-                if ($date->isWeekday()) {
+                if ($date->isWeekday() && !$this->isHoliday($date)) {
                     $day = $date->toDateString();
                     $taken = $bookings->get($day, collect())->pluck('time')->all();
 
@@ -186,6 +191,11 @@ class AppointmentController extends Controller
             if ($slot->isWeekend()) {
                 throw ValidationException::withMessages([
                     'date' => 'Appointments are available Monday through Friday.',
+                ]);
+            }
+            if ($this->isHoliday($slot)) {
+                throw ValidationException::withMessages([
+                    'date' => 'The barangay office is closed on this holiday. Choose another date.',
                 ]);
             }
             if ($slot <= now(self::TIMEZONE)) {

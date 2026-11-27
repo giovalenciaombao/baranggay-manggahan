@@ -20,14 +20,14 @@ class AppointmentHoursTest extends TestCase
         $appointment = Appointment::create([
             'user_id' => $this->activeUser('resident')->id,
             'purpose' => 'Barangay Clearance',
-            'date' => '2026-11-30',
+            'date' => '2026-12-01',
             'time' => '9:00 AM',
             'status' => Appointment::STATUS_PENDING,
         ]);
 
         $payload = ['status' => 'rescheduled', 'admin_note' => 'Staff schedule changed.'];
         $url = "/api/appointments/{$appointment->id}";
-        foreach (['2026-11-28', '2026-11-29'] as $date) {
+        foreach (['2026-11-28', '2026-11-29', '2026-11-30', '2027-01-01'] as $date) {
             $this->getJson("/api/appointments/availability?date={$date}")
                 ->assertOk()->assertJsonPath('slots', []);
             $this->putJson($url, $payload + ['date' => $date, 'time' => '8:00 AM'])
@@ -35,9 +35,9 @@ class AppointmentHoursTest extends TestCase
         }
         $this->putJson($url, $payload + ['date' => '2026-11-27', 'time' => '4:00 PM'])
             ->assertUnprocessable()->assertJsonValidationErrors('time');
-        $this->putJson($url, $payload + ['date' => '2026-11-30', 'time' => '5:00 PM'])
+        $this->putJson($url, $payload + ['date' => '2026-12-01', 'time' => '5:00 PM'])
             ->assertUnprocessable()->assertJsonValidationErrors('time');
-        $this->putJson($url, $payload + ['date' => '2026-11-30', 'time' => '4:00 PM'])
+        $this->putJson($url, $payload + ['date' => '2026-12-01', 'time' => '4:00 PM'])
             ->assertOk()->assertJsonPath('appointment.time', '4:00 PM');
     }
 
