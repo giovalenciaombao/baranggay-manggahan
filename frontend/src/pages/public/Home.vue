@@ -53,7 +53,7 @@
       <div class="rounded-2xl border border-amber-200 bg-amber-50 p-6 sm:p-8">
         <h2 class="text-2xl font-semibold text-primary-dark">Before you register</h2>
         <p class="mt-3 text-sm leading-relaxed text-gray-700">
-          Have a photo of your barangay ID or a copy of a billing statement ready. Barangay staff review your proof of residency before activating your account.
+          Have your Barangay ID, billing statement, or HOA Certificate ready. Barangay staff review your proof of residency before activating your account.
         </p>
         <RouterLink to="/register" class="btn-primary mt-5">Register</RouterLink>
       </div>

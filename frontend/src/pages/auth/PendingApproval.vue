@@ -14,7 +14,7 @@
       <h2 class="font-display text-xl font-semibold text-primary-dark">One more step</h2>
       <p class="text-sm text-gray-500 max-w-sm">
         To protect the system, we need proof that you live in Barangay Manggahan.
-        Upload a Barangay ID or a billing statement. A barangay admin will review it.
+        Upload a Barangay ID, billing statement, or HOA Certificate. A barangay admin will review it.
       </p>
 
       <form @submit.prevent="submitProof" class="w-full max-w-sm text-left space-y-3 mt-2">
@@ -32,6 +32,7 @@
             <option value="">Select document type</option>
             <option value="barangay_id">Barangay ID</option>
             <option value="billing_statement">Billing statement</option>
+            <option value="hoa_certificate">HOA Certificate</option>
           </select>
           <p v-if="errors.proof_type" class="text-xs text-red-500 mt-1">{{ errors.proof_type }}</p>
         </div>

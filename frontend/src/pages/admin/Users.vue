@@ -344,6 +344,7 @@ const statusMap = {
 const proofLabels = {
   barangay_id:       'Barangay ID',
   billing_statement: 'Billing statement',
+  hoa_certificate:    'HOA Certificate',
 }
 
 const filters = computed(() => [

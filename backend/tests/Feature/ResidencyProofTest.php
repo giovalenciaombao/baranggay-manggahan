@@ -35,10 +35,10 @@ class ResidencyProofTest extends TestCase
 
         $pdf = "%PDF-1.4\nSample proof\n";
         $this->withToken($login->json('token'))->post('/api/auth/proof', [
-            'proof_type' => 'billing_statement',
+            'proof_type' => 'hoa_certificate',
             'proof' => UploadedFile::fake()->createWithContent('proof.pdf', $pdf),
             'privacy_consent' => '1',
-        ], ['Accept' => 'application/json'])->assertOk()->assertJsonPath('user.has_proof', true);
+        ], ['Accept' => 'application/json'])->assertOk()->assertJsonPath('user.has_proof', true)->assertJsonPath('user.proof_type', 'hoa_certificate');
 
         $stored = DB::table('residency_proofs')->where('user_id', $resident->id)->value('contents');
         $this->assertNotEmpty($stored);

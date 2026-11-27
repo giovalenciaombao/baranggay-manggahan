@@ -23,7 +23,7 @@ class AuthController extends Controller
             'contact_number'  => 'required|string',
             'address'         => 'required|string',
             'password'        => 'required|min:8|confirmed',
-            'proof_type'      => 'required|in:barangay_id,billing_statement',
+            'proof_type'      => 'required|in:barangay_id,billing_statement,hoa_certificate',
             'proof'           => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'privacy_consent' => 'accepted',
         ], [
@@ -96,7 +96,7 @@ class AuthController extends Controller
         }
 
         $request->validate([
-            'proof_type'      => 'required|in:barangay_id,billing_statement',
+            'proof_type'      => 'required|in:barangay_id,billing_statement,hoa_certificate',
             'proof'           => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'privacy_consent' => 'accepted',
         ], [

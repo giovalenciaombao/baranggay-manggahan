@@ -18,7 +18,7 @@
         <div class="flex items-start gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-5">
           <InformationCircleIcon class="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
           <p class="text-sm text-green-800">
-            Upload a Barangay ID or billing statement so a barangay admin can verify that you live in Barangay Manggahan before your account is activated.
+            Upload a Barangay ID, billing statement, or HOA Certificate so a barangay admin can verify that you live in Barangay Manggahan before your account is activated.
           </p>
         </div>
 
@@ -90,6 +90,7 @@
               <option value="">Select document type</option>
               <option value="barangay_id">Barangay ID</option>
               <option value="billing_statement">Billing statement</option>
+              <option value="hoa_certificate">HOA Certificate</option>
             </select>
             <p v-if="errors.proof_type" class="text-xs text-red-500 mb-2">{{ errors.proof_type }}</p>
 

@@ -20,7 +20,7 @@ class RegistrationRetryTest extends TestCase
         $password = 'test-registration-password';
 
         $this->register($email, $password)->assertCreated()
-            ->assertJsonPath('user.status', 'pending');
+            ->assertJsonPath('user.status', 'pending')->assertJsonPath('user.proof_type', 'hoa_certificate');
         $this->postJson('/api/auth/login', compact('email', 'password'))->assertForbidden()
             ->assertJsonPath('message', 'Your account is pending approval.');
         $this->register($email, $password)->assertOk()
@@ -36,7 +36,7 @@ class RegistrationRetryTest extends TestCase
     {
         config(['mail.default' => 'missing-test-mailer']);
         $response = $this->register('pending@example.test', 'test-registration-password')
-            ->assertCreated()->assertJsonPath('user.status', 'pending');
+            ->assertCreated()->assertJsonPath('user.status', 'pending')->assertJsonPath('user.proof_type', 'hoa_certificate');
         $residentId = $response->json('user.id');
         DB::table('registration_verifications')->insert([
             'user_id' => $residentId,
@@ -65,7 +65,7 @@ class RegistrationRetryTest extends TestCase
             'password_confirmation' => $password,
             'address' => 'Main Street',
             'contact_number' => '09123456789',
-            'proof_type' => 'billing_statement',
+            'proof_type' => 'hoa_certificate',
             'proof' => UploadedFile::fake()->createWithContent('proof.pdf', "%PDF-1.4\n"),
             'privacy_consent' => '1',
         ], ['Accept' => 'application/json']);
