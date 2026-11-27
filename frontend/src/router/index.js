@@ -88,12 +88,6 @@ const routes = [
         meta: { title: 'Alerts & Announcements' }
       },
       {
-        path: 'waste',
-        name: 'resident-waste',
-        component: () => import('@/pages/resident/Waste.vue'),
-        meta: { title: 'Waste Management' }
-      },
-      {
         path: 'profile',
         name: 'resident-profile',
         component: () => import('@/pages/resident/Profile.vue'),
@@ -149,18 +143,6 @@ const routes = [
         name: 'admin-alerts',
         component: () => import('@/pages/admin/Alerts.vue'),
         meta: { title: 'Alerts & Announcements' }
-      },
-      {
-        path: 'waste',
-        name: 'admin-waste',
-        component: () => import('@/pages/admin/Waste.vue'),
-        meta: { title: 'Waste Management' }
-      },
-      {
-        path: 'waste-schedules',
-        name: 'admin-waste-schedules',
-        component: () => import('@/pages/admin/WasteSchedules.vue'),
-        meta: { title: 'Garbage Truck Schedule' }
       },
       {
         path: 'reports',

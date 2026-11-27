@@ -1,22 +1,18 @@
 <template>
-  <div class="min-h-screen bg-gray-50 flex">
+  <div class="min-h-screen bg-primary-50 flex">
 
     <!-- Sidebar (desktop) -->
     <aside
-      class="fixed inset-y-0 left-0 z-40 w-64 bg-primary-dark flex flex-col
+      class="fixed inset-y-0 left-0 z-40 w-64 barangay-sidebar flex flex-col
              transition-transform duration-300 ease-in-out
              -translate-x-full lg:translate-x-0"
       :class="{ 'translate-x-0': sidebarOpen }"
     >
       <!-- Logo -->
       <div class="flex items-center gap-3 px-5 py-5 border-b border-white/10">
-        <div class="w-9 h-9 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
-          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/>
-          </svg>
-        </div>
+        <img :src="logo" alt="" width="44" height="44" class="h-11 w-11 rounded-full bg-white" />
         <div>
-          <p class="font-display font-semibold text-white text-sm leading-none">Brgy. Manggahan</p>
+          <p class="font-display font-semibold text-white text-sm leading-none">Barangay Manggahan</p>
           <p class="text-xs text-primary-light/50 mt-0.5 leading-none">Resident Portal</p>
         </div>
       </div>
@@ -61,10 +57,10 @@
     />
 
     <!-- Main area -->
-    <div class="flex-1 lg:ml-64 flex flex-col min-h-screen">
+    <div class="flex-1 lg:ml-64 min-w-0 flex flex-col min-h-screen">
 
       <!-- Topbar -->
-      <header class="sticky top-0 z-20 bg-white border-b border-gray-100 h-16 flex items-center px-4 sm:px-6 gap-3">
+      <header class="sticky top-0 z-20 bg-white/95 border-b border-primary/10 backdrop-blur h-16 flex items-center px-4 sm:px-6 gap-3">
         <!-- Hamburger (mobile) -->
         <button
           @click="sidebarOpen = true"
@@ -181,6 +177,7 @@ import {
 } from '@heroicons/vue/24/outline'
 import api from '@/services/api'
 import SidebarLink from '@/components/layout/SidebarLink.vue'
+import logo from '@/assets/barangay-manggahan-logo.png'
 
 const authStore        = useAuthStore()
 const route            = useRoute()
@@ -219,7 +216,6 @@ const navItems = [
   { name: 'incidents',    to: '/portal/incidents',    icon: 'alert',    label: 'Incidents'    },
   { name: 'appointments', to: '/portal/appointments', icon: 'calendar', label: 'Appointments' },
   { name: 'alerts',       to: '/portal/alerts',       icon: 'bell',     label: 'Alerts'       },
-  { name: 'waste',        to: '/portal/waste',        icon: 'recycle',  label: 'Waste'        },
   { name: 'profile',      to: '/portal/profile',      icon: 'user',     label: 'My Profile'   },
 ]
 

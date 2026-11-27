@@ -1,19 +1,21 @@
 <template>
-  <div class="min-h-screen bg-primary-light flex flex-col">
+  <div class="min-h-screen bg-primary-50 flex flex-col">
     <!-- Navbar -->
-    <nav class="bg-white border-b border-primary/10 sticky top-0 z-50">
+    <nav class="bg-white/95 backdrop-blur border-b border-primary/10 sticky top-0 z-50">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-16">
+        <div class="flex items-center justify-between gap-2 h-[4.5rem]">
           <!-- Logo -->
-          <RouterLink to="/" class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-              <svg class="w-5 h-5 text-primary-light" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/>
-              </svg>
-            </div>
-            <div class="hidden sm:block">
-              <p class="font-display font-semibold text-primary-dark text-sm leading-none">Barangay Manggahan</p>
-              <p class="text-xs text-gray-400 leading-none mt-0.5">Resident Services Portal</p>
+          <RouterLink to="/" class="flex items-center gap-3" aria-label="Barangay Manggahan home">
+            <img
+              :src="logo"
+              alt=""
+              width="48"
+              height="48"
+              class="h-12 w-12 shrink-0 rounded-lg object-contain"
+            />
+            <div class="min-w-0">
+              <p class="font-display font-semibold text-primary-dark text-xs leading-tight sm:text-base">Barangay Manggahan</p>
+              <p class="hidden text-xs text-gray-600 sm:block">Resident Services Portal</p>
             </div>
           </RouterLink>
 
@@ -42,14 +44,10 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
           <div class="flex items-center gap-2">
-            <div class="w-6 h-6 rounded-lg bg-primary flex items-center justify-center">
-              <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/>
-              </svg>
-            </div>
+            <img :src="logo" alt="" width="32" height="32" class="h-8 w-8 rounded-full bg-white" />
             <span class="text-sm font-display">Brgy. Manggahan</span>
           </div>
-          <p class="text-xs text-primary-light/40">
+          <p class="text-xs text-primary-light/75">
             © {{ year }} Barangay Manggahan. All rights reserved.
           </p>
         </div>
@@ -60,5 +58,8 @@
 
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
+
+import logo from '../assets/barangay-manggahan-logo.png'
+
 const year = new Date().getFullYear()
 </script>

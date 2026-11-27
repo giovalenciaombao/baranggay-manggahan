@@ -2,13 +2,13 @@
     <div class="p-4 sm:p-6 space-y-6">
 
       <!-- Header -->
-      <div>
-        <h1 class="text-xl font-semibold text-primary-dark">Good {{ timeOfDay }}, {{ user?.first_name }}!</h1>
-        <p class="text-sm text-gray-400 mt-0.5">Here's what's happening in Barangay Manggahan.</p>
+      <div class="barangay-banner rounded-2xl px-6 py-8 text-white sm:px-8">
+        <h2 class="text-2xl font-semibold sm:text-3xl">Good {{ timeOfDay }}, {{ user?.first_name }}!</h2>
+        <p class="mt-2 text-sm text-white/[.85]">Here's what's happening in Barangay Manggahan.</p>
       </div>
 
       <!-- Stat cards -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div class="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-3">
         <StatCard
           v-for="stat in statCards"
           :key="stat.label"
@@ -111,7 +111,6 @@ import {
   ExclamationCircleIcon,
   CalendarDaysIcon,
   BellAlertIcon,
-  TrashIcon,
   ChevronRightIcon,
   ExclamationTriangleIcon,
   ClipboardDocumentListIcon,
@@ -124,7 +123,7 @@ import AppBadge from '@/components/common/AppBadge.vue'
 const authStore  = useAuthStore()
 const user       = computed(() => authStore.user)
 const loading    = ref(true)
-const stats      = ref({ total_incidents: 0, total_appointments: 0, total_waste: 0, unread_alerts: 0 })
+const stats      = ref({ total_incidents: 0, total_appointments: 0, unread_alerts: 0 })
 const activity   = ref([])
 const alerts     = ref([])
 
@@ -139,7 +138,6 @@ const statCards = computed(() => [
   { label: 'Incidents Filed',  value: stats.value.total_incidents,    icon: ExclamationCircleIcon, color: 'red'    },
   { label: 'Appointments',     value: stats.value.total_appointments,  icon: CalendarDaysIcon,      color: 'green'  },
   { label: 'Unread Alerts',    value: stats.value.unread_alerts,       icon: BellAlertIcon,         color: 'yellow' },
-  { label: 'Waste Pickups',    value: stats.value.total_waste,         icon: TrashIcon,             color: 'blue'   },
 ])
 
 const statusVariantMap = {
@@ -166,7 +164,6 @@ const quickActions = [
   { label: 'File an Incident', to: '/portal/incidents/new',    icon: ExclamationCircleIcon },
   { label: 'Book Appointment', to: '/portal/appointments/new', icon: CalendarDaysIcon      },
   { label: 'View Alerts',      to: '/portal/alerts',           icon: BellAlertIcon         },
-  { label: 'Waste Registry',   to: '/portal/waste',            icon: TrashIcon             },
 ]
 
 const alertsWithConfig = computed(() =>

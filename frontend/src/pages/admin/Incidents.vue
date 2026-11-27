@@ -104,7 +104,7 @@
         class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4"
         @click.self="showModal = false"
       >
-        <div class="bg-white rounded-2xl p-6 w-full max-w-md space-y-4 shadow-xl">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto space-y-4 shadow-xl">
           <div class="flex items-center justify-between">
             <h3 class="text-base font-semibold text-primary-dark">Incident Details</h3>
             <button @click="showModal = false" class="text-gray-400 hover:text-gray-600">
@@ -137,6 +137,11 @@
               <p class="text-xs text-gray-400 mb-0.5">Date filed</p>
               <p class="text-gray-700">{{ selectedItem.date }}</p>
             </div>
+            <div v-if="selectedItem.photo">
+              <p class="text-xs text-gray-400 mb-1">Incident photo</p>
+              <img v-if="photoUrl" :src="photoUrl" alt="Photo attached to the incident report" class="w-full max-h-64 object-contain rounded-xl" />
+              <p v-else class="text-gray-500" role="status">{{ photoError || "Loading photo?" }}</p>
+            </div>
             <div class="flex items-center gap-2">
               <p class="text-xs text-gray-400">Status</p>
               <AppBadge :variant="selectedItem.status.variant">
@@ -159,7 +164,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import {
   MagnifyingGlassIcon,
@@ -178,6 +183,8 @@ const loading      = ref(true)
 const showModal    = ref(false)
 const selectedItem = ref(null)
 const incidents    = ref([])
+const photoUrl     = ref('')
+const photoError   = ref('')
 
 const statusMap = {
   pending:   { variant: 'warning', label: 'Pending'      },
@@ -199,6 +206,7 @@ const incidentsWithMeta = computed(() =>
     ...i,
     resident: i.user ? `${i.user.first_name} ${i.user.last_name}` : '—',
     date:     new Date(i.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }),
+    statusKey: i.status,
     status:   statusMap[i.status] ?? { variant: 'default', label: i.status },
   }))
 )
@@ -229,6 +237,31 @@ async function updateStatus(item) {
     toast.error(err.response?.data?.message || 'Failed to update status.')
   }
 }
+
+watch(() => showModal.value ? selectedItem.value : null, async (item, _, onCleanup) => {
+  photoUrl.value = ''
+  photoError.value = ''
+  if (!item?.photo) return
+
+  const controller = new AbortController()
+  let objectUrl
+  onCleanup(() => {
+    controller.abort()
+    if (objectUrl) URL.revokeObjectURL(objectUrl)
+  })
+
+  try {
+    const { data } = await api.get('/admin/incidents/' + item.id + '/photo', {
+      responseType: 'blob',
+      signal: controller.signal,
+    })
+    if (controller.signal.aborted) return
+    objectUrl = URL.createObjectURL(data)
+    photoUrl.value = objectUrl
+  } catch {
+    if (!controller.signal.aborted) photoError.value = 'The attached photo could not be loaded.'
+  }
+})
 
 onMounted(async () => {
   try {

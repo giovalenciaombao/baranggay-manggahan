@@ -22,7 +22,6 @@
         <option value="">All records</option>
         <option value="appointment">Appointments</option>
         <option value="incident">Incidents</option>
-        <option value="waste">Waste requests</option>
       </select>
 
       <div class="relative">

@@ -2,8 +2,9 @@
   <div class="p-4 sm:p-6 space-y-6">
 
     <!-- Header -->
-    <div>
-      <p class="text-sm text-gray-400 mt-0.5">Overview of Barangay Manggahan.</p>
+    <div class="barangay-banner rounded-2xl px-6 py-8 text-white sm:px-8">
+      <h2 class="text-2xl font-semibold sm:text-3xl">Barangay Manggahan</h2>
+      <p class="mt-2 text-sm text-white/[.85]">Review resident registrations, incidents, and appointments.</p>
     </div>
 
     <!-- Stat cards -->

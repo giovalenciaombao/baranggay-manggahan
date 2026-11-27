@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Incident;
 use App\Models\Appointment;
 use App\Models\Alert;
-use App\Models\WasteRequest;
 use Illuminate\Http\Request;
 
 class ReportController extends Controller
@@ -21,7 +20,6 @@ class ReportController extends Controller
             'incidents'    => $this->incidents($from, $to, $status),
             'appointments' => $this->appointments($from, $to, $status),
             'alerts'       => $this->alerts($from, $to),
-            'waste'        => $this->waste($from, $to, $status),
             default        => collect(),
         };
 
@@ -78,24 +76,6 @@ class ReportController extends Controller
                 'title'   => $a->title,
                 'message' => $a->message,
                 'date'    => $a->created_at->format('M d, Y'),
-            ]);
-    }
-
-    private function waste($from, $to, $status)
-    {
-        return WasteRequest::with('user:id,first_name,last_name')
-            ->when($from,   fn($q) => $q->whereDate('created_at', '>=', $from))
-            ->when($to,     fn($q) => $q->whereDate('created_at', '<=', $to))
-            ->when($status, fn($q) => $q->where('status', $status))
-            ->latest()
-            ->get()
-            ->map(fn($w) => [
-                'id'       => $w->id,
-                'resident' => $w->user->full_name ?? '—',
-                'type'     => $w->type,
-                'date'     => $w->date,
-                'notes'    => $w->notes ?? '—',
-                'status'   => ucfirst($w->status),
             ]);
     }
 }

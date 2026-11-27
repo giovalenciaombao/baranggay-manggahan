@@ -134,7 +134,6 @@ import {
   ExclamationCircleIcon,
   CalendarDaysIcon,
   BellAlertIcon,
-  TrashIcon,
   ArrowDownTrayIcon,
 } from '@heroicons/vue/24/outline'
 import { useToast } from 'vue-toastification'
@@ -154,7 +153,6 @@ const reportTypes = [
   { value: 'incidents',    label: 'Incidents',    icon: ExclamationCircleIcon, iconBg: 'bg-red-50',    iconColor: 'text-red-400'    },
   { value: 'appointments', label: 'Appointments', icon: CalendarDaysIcon,      iconBg: 'bg-green-50',  iconColor: 'text-green-600'  },
   { value: 'alerts',       label: 'Alerts',       icon: BellAlertIcon,         iconBg: 'bg-yellow-50', iconColor: 'text-yellow-500' },
-  { value: 'waste',        label: 'Waste',        icon: TrashIcon,             iconBg: 'bg-blue-50',   iconColor: 'text-blue-500'   },
 ]
 
 // ─── Column definitions per report ────────────────────────────────────────
@@ -182,14 +180,6 @@ const columnMap = {
     { key: 'title',   label: 'Title'   },
     { key: 'message', label: 'Message' },
     { key: 'date',    label: 'Date'    },
-  ],
-  waste: [
-    { key: 'id',       label: '#'         },
-    { key: 'resident', label: 'Resident'  },
-    { key: 'type',     label: 'Waste Type'},
-    { key: 'date',     label: 'Date'      },
-    { key: 'notes',    label: 'Notes'     },
-    { key: 'status',   label: 'Status'    },
   ],
 }
 

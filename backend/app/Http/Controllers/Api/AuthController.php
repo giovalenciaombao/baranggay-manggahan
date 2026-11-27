@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\AccountMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -46,6 +47,12 @@ class AuthController extends Controller
             'proof_submitted_at' => now(),
             'privacy_consent_at' => now(),
         ]);
+
+        AccountMail::send(
+            $user,
+            'Barangay Manggahan Registration Received',
+            'We received your registration. Please wait for a barangay administrator to review it.',
+        );
 
         return response()->json([
             'message' => 'Registration successful. Please wait for admin approval.',

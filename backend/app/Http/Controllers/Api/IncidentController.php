@@ -34,6 +34,10 @@ class IncidentController extends Controller
             $photoPath = $request->file('photo')->store('incidents', 'public');
         }
 
+        if ($photoPath === false) {
+            return response()->json(['message' => 'The photo could not be saved. Please try again.'], 503);
+        }
+
         $incident = Incident::create([
             'user_id'     => $request->user()->id,
             'title'       => $request->title,
@@ -57,6 +61,14 @@ class IncidentController extends Controller
         }
 
         return response()->json(['incident' => $incident->load('user')]);
+    }
+
+    public function photo(Incident $incident)
+    {
+        $disk = Storage::disk('public');
+        abort_unless($incident->photo && $disk->exists($incident->photo), 404);
+
+        return $disk->response($incident->photo, null, ['Cache-Control' => 'private, no-store']);
     }
 
     // Admin only

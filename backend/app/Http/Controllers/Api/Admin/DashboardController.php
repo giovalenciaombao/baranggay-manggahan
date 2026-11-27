@@ -8,7 +8,6 @@ use App\Models\Incident;
 use App\Models\Appointment;
 use App\Models\Alert;
 use App\Models\Notification;
-use App\Models\WasteRequest;
 
 class DashboardController extends Controller
 {
@@ -64,7 +63,6 @@ class DashboardController extends Controller
         $stats = [
             'total_incidents'    => Incident::where('user_id', $user->id)->count(),
             'total_appointments' => Appointment::where('user_id', $user->id)->count(),
-            'total_waste'        => WasteRequest::where('user_id', $user->id)->count(),
             // Alerts this resident was notified about and has not opened yet
             'unread_alerts'      => Notification::where('user_id', $user->id)
                 ->where('type', 'alert')

@@ -6,7 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\Notification;
 use App\Services\AssistService;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
 
 class AppointmentController extends Controller
@@ -61,31 +64,60 @@ class AppointmentController extends Controller
     {
         $request->validate([
             'purpose' => 'required|string|max:255',
-            'date'    => 'required|date|after_or_equal:today',
-            'time'    => ['required', 'string', Rule::in(Appointment::TIME_SLOTS)],
             'notes'   => 'nullable|string',
         ]);
 
-        if ($this->slotTaken($request->date, $request->time)) {
-            return response()->json([
-                'message' => self::BOOKED_MESSAGE,
-                'errors'  => ['time' => [self::BOOKED_MESSAGE]],
-            ], 422);
+        return $this->withScheduleLock(function () use ($request) {
+            $now = now('Asia/Manila');
+            $date = $now->copy()->startOfDay();
+            $end = $date->copy()->addDays(90);
+
+            $bookings = Appointment::whereBetween('date', [$date->toDateString(), $end->toDateString()])
+                ->whereIn('status', $this->occupyingStatuses())
+                ->get(['date', 'time'])
+                ->groupBy(fn (Appointment $appointment) => $appointment->date->toDateString());
+
+            while ($date <= $end) {
+                if ($date->isWeekday()) {
+                    $day = $date->toDateString();
+                    $taken = $bookings->get($day, collect())->pluck('time')->all();
+
+                    foreach (Appointment::TIME_SLOTS as $time) {
+                        $slot = Carbon::parse("$day $time", $now->timezone);
+                        if ($slot <= $now || in_array($time, $taken, true)) {
+                            continue;
+                        }
+
+                        $appointment = Appointment::create([
+                            'user_id' => $request->user()->id,
+                            'purpose' => $request->purpose,
+                            'date'    => $day,
+                            'time'    => $time,
+                            'notes'   => $request->notes,
+                            'status'  => Appointment::STATUS_PENDING,
+                        ]);
+
+                        return response()->json([
+                            'message'     => 'Appointment date and time assigned.',
+                            'appointment' => $appointment,
+                        ], 201);
+                    }
+                }
+
+                $date->addDay();
+            }
+
+            return response()->json(['message' => 'No appointment slots are available in the next 90 days.'], 422);
+        });
+    }
+
+    private function withScheduleLock(callable $callback)
+    {
+        try {
+            return Cache::lock('appointments:schedule', 30)->block(5, $callback);
+        } catch (LockTimeoutException) {
+            return response()->json(['message' => 'The appointment schedule is busy. Please try again.'], 503);
         }
-
-        $appointment = Appointment::create([
-            'user_id' => $request->user()->id,
-            'purpose' => $request->purpose,
-            'date'    => $request->date,
-            'time'    => $request->time,
-            'notes'   => $request->notes,
-            'status'  => Appointment::STATUS_PENDING,
-        ]);
-
-        return response()->json([
-            'message'     => 'Appointment booked successfully.',
-            'appointment' => $appointment,
-        ], 201);
     }
 
     public function show(Request $request, Appointment $appointment)
@@ -111,6 +143,11 @@ class AppointmentController extends Controller
             'admin_note.required_if' => 'Please provide a reason/note for the resident.',
         ]);
 
+        return $this->withScheduleLock(fn () => $this->updateAppointment($request, $appointment->refresh()));
+    }
+
+    private function updateAppointment(Request $request, Appointment $appointment)
+    {
         if (in_array($appointment->status, [Appointment::STATUS_CANCELLED, Appointment::STATUS_COMPLETED])) {
             return response()->json([
                 'message' => "This appointment is already {$appointment->status} and can no longer be changed.",

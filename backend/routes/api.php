@@ -5,8 +5,6 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\IncidentController;
 use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\AlertController;
-use App\Http\Controllers\Api\WasteRequestController;
-use App\Http\Controllers\Api\WasteScheduleController;
 use App\Http\Controllers\Api\Admin\UserController;
 use App\Http\Controllers\Api\Admin\StaffController;
 use App\Http\Controllers\Api\Admin\AssistLogController;
@@ -54,14 +52,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/appointments',              [AppointmentController::class, 'store']);
         Route::get('/appointments/{appointment}', [AppointmentController::class, 'show']);
 
-        // Waste Requests
-        Route::get('/waste',                [WasteRequestController::class, 'index']);
-        Route::post('/waste',               [WasteRequestController::class, 'store']);
-        Route::get('/waste/{wasteRequest}', [WasteRequestController::class, 'show']);
-
-        // Garbage truck schedules (upcoming) - residents + admin
-        Route::get('/waste-schedules', [WasteScheduleController::class, 'index']);
-
         // Notifications
         Route::get('/notifications',              [NotificationController::class, 'index']);
         Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
@@ -82,7 +72,8 @@ Route::middleware('auth:sanctum')->group(function () {
             // Admin - view all records
             Route::get('/admin/incidents',    [IncidentController::class,    'adminIndex']);
             Route::get('/admin/appointments', [AppointmentController::class, 'adminIndex']);
-            Route::get('/admin/waste',        [WasteRequestController::class,'adminIndex']);
+
+            Route::get('/admin/incidents/{incident}/photo', [IncidentController::class, 'photo']);
 
             // Incidents - admin update
             Route::put('/incidents/{incident}',       [IncidentController::class,    'update']);
@@ -94,16 +85,6 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/alerts',            [AlertController::class, 'store']);
             Route::put('/alerts/{alert}',     [AlertController::class, 'update']);
             Route::delete('/alerts/{alert}',  [AlertController::class, 'destroy']);
-
-            // Waste - admin update + delete
-            Route::put('/waste/{wasteRequest}',    [WasteRequestController::class, 'update']);
-            Route::delete('/waste/{wasteRequest}', [WasteRequestController::class, 'destroy']);
-
-            // Garbage truck schedule - admin CRUD
-            Route::get('/admin/waste-schedules',              [WasteScheduleController::class, 'adminIndex']);
-            Route::post('/waste-schedules',                   [WasteScheduleController::class, 'store']);
-            Route::put('/waste-schedules/{wasteSchedule}',    [WasteScheduleController::class, 'update']);
-            Route::delete('/waste-schedules/{wasteSchedule}', [WasteScheduleController::class, 'destroy']);
 
             // Reports
             Route::get('/admin/reports/{type}', [ReportController::class, 'index']);

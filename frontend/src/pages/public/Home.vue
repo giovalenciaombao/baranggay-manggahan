@@ -1,152 +1,111 @@
 <template>
   <div>
-
-    <!-- ── Hero ─────────────────────────────────────────────────────────────── -->
-    <section class="bg-primary-dark px-4 sm:px-6 pt-16 pb-20 text-center">
-      <div class="inline-flex items-center gap-1.5 bg-primary/30 text-green-200 text-xs font-medium px-3.5 py-1.5 rounded-full border border-primary/40 mb-6">
-        <MapPinIcon class="w-3.5 h-3.5" />
-        Barangay Manggahan, Quezon City
+    <section class="barangay-banner text-white">
+      <div class="mx-auto grid max-w-7xl items-center gap-10 px-5 py-14 sm:px-8 sm:py-20 md:grid-cols-[1.35fr_1fr] lg:px-12">
+        <div>
+          <p class="mb-5 flex items-center gap-2 text-sm font-semibold text-amber-200">
+            <MapPinIcon class="h-5 w-5" aria-hidden="true" />
+            Montalban, Rizal
+          </p>
+          <h1 class="max-w-xl text-5xl font-semibold leading-none tracking-tight sm:text-6xl lg:text-7xl">
+            Barangay<br /> Manggahan
+          </h1>
+          <p class="mt-6 max-w-md text-base leading-relaxed text-white/[.85] sm:text-lg">
+            Book a barangay appointment, report a concern, or check community announcements.
+          </p>
+          <div class="mt-8 flex flex-wrap gap-3">
+            <RouterLink to="/register" class="btn bg-amber-200 text-primary-dark hover:bg-amber-100 focus:ring-amber-200">
+              Create resident account
+              <ArrowRightIcon class="h-4 w-4" aria-hidden="true" />
+            </RouterLink>
+            <a href="#services" class="btn border border-white/40 text-white hover:bg-white/10 focus:ring-white">
+              Explore services
+            </a>
+          </div>
+        </div>
+        <div class="relative hidden aspect-square w-full max-w-xs place-self-center rounded-full border border-white/25 p-5 md:block lg:max-w-sm">
+          <div class="grid h-full place-items-center rounded-full border border-amber-200/50 bg-white/10 p-5">
+            <img :src="logo" alt="Barangay Manggahan seal" width="960" height="960"
+              class="w-full rounded-full bg-white" />
+          </div>
+        </div>
       </div>
+    </section>
 
-      <h1 class="font-display text-3xl sm:text-4xl lg:text-5xl font-semibold text-primary-light leading-tight max-w-xl mx-auto mb-5">
-        Your barangay services, online and at your fingertips
-      </h1>
+    <section id="services" class="mx-auto max-w-7xl scroll-mt-24 px-5 py-12 sm:px-8 sm:py-16 lg:px-12">
+      <h2 class="text-3xl font-semibold tracking-tight text-primary-dark sm:text-4xl">Resident services</h2>
+      <div class="mt-6 grid gap-4 md:grid-cols-3">
+        <article v-for="service in services" :key="service.title" class="card flex flex-col p-6">
+          <div class="mb-5 grid h-11 w-11 place-items-center rounded-xl" :class="service.iconStyle">
+            <component :is="service.icon" class="h-5 w-5" aria-hidden="true" />
+          </div>
+          <h3 class="text-xl font-semibold text-primary-dark">{{ service.title }}</h3>
+          <p class="mt-2 flex-1 text-sm leading-relaxed text-gray-600">{{ service.description }}</p>
+          <RouterLink :to="service.route" class="mt-5 inline-flex w-fit items-center gap-2 rounded-sm text-sm font-semibold text-primary-700 hover:underline focus-visible:ring-2 focus-visible:ring-primary">
+            {{ service.action }}
+            <ArrowRightIcon class="h-4 w-4" aria-hidden="true" />
+          </RouterLink>
+        </article>
+      </div>
+    </section>
 
-      <p class="text-primary-light/60 text-sm sm:text-base max-w-md mx-auto mb-8 leading-relaxed">
-        File incident reports, book appointments, and stay updated with community alerts — all in one portal.
-      </p>
-
-      <div class="flex items-center justify-center gap-3 flex-wrap">
-        <RouterLink to="/register" class="btn-primary gap-2">
-          <UserPlusIcon class="w-4 h-4" />
-          Register as resident
-        </RouterLink>
-        <a href="#services" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border border-primary-light/25 text-primary-light hover:bg-white/10 transition-colors">
-          Learn more
-          <ChevronDownIcon class="w-4 h-4" />
+    <section class="mx-auto grid max-w-7xl gap-5 px-5 pb-14 sm:px-8 lg:grid-cols-2 lg:px-12">
+      <div class="rounded-2xl border border-amber-200 bg-amber-50 p-6 sm:p-8">
+        <h2 class="text-2xl font-semibold text-primary-dark">Before you register</h2>
+        <p class="mt-3 text-sm leading-relaxed text-gray-700">
+          Have a photo of your barangay ID or a copy of a billing statement ready. Barangay staff review your proof of residency before activating your account.
+        </p>
+        <RouterLink to="/register" class="btn-primary mt-5">Register</RouterLink>
+      </div>
+      <div class="rounded-2xl border border-primary/15 bg-white p-6 sm:p-8">
+        <h2 class="text-2xl font-semibold text-primary-dark">Barangay updates</h2>
+        <p class="mt-3 text-sm leading-relaxed text-gray-700">
+          Follow Barangay Manggahan for community events, advisories, and public announcements.
+        </p>
+        <a href="https://www.facebook.com/BarangayManggahanOfficial/" class="btn-secondary mt-5">
+          Visit the Facebook page
+          <ArrowTopRightOnSquareIcon class="h-4 w-4" aria-hidden="true" />
         </a>
       </div>
-
-      <!-- Stats -->
-      <div class="flex items-center justify-center gap-8 sm:gap-14 mt-14 flex-wrap">
-        <div v-for="(stat, i) in stats" :key="i" class="text-center">
-          <p class="font-display text-2xl font-semibold text-primary-light">{{ stat.value }}</p>
-          <p class="text-xs text-primary-light/40 mt-0.5">{{ stat.label }}</p>
-        </div>
-      </div>
     </section>
-
-    <!-- ── Services ──────────────────────────────────────────────────────────── -->
-    <section id="services" class="bg-primary-light/60 px-4 sm:px-6 py-16">
-      <div class="max-w-4xl mx-auto">
-        <p class="text-center text-xs font-medium text-primary uppercase tracking-widest mb-2">What you can do</p>
-        <h2 class="font-display text-2xl font-semibold text-primary-dark text-center mb-10">Services available online</h2>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div
-            v-for="service in services"
-            :key="service.label"
-            class="card hover:border-primary/30 transition-colors duration-200"
-          >
-            <div class="w-11 h-11 rounded-xl bg-green-50 flex items-center justify-center mb-4">
-              <component :is="service.icon" class="w-5 h-5 text-primary" />
-            </div>
-            <p class="font-medium text-primary-dark text-sm mb-1">{{ service.label }}</p>
-            <p class="text-xs text-gray-500 leading-relaxed">{{ service.desc }}</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── How it works ──────────────────────────────────────────────────────── -->
-    <section class="bg-white px-4 sm:px-6 py-16">
-      <div class="max-w-lg mx-auto">
-        <p class="text-center text-xs font-medium text-primary uppercase tracking-widest mb-2">Getting started</p>
-        <h2 class="font-display text-2xl font-semibold text-primary-dark text-center mb-10">How it works</h2>
-
-        <div class="flex flex-col gap-6">
-          <div v-for="step in steps" :key="step.num" class="flex items-start gap-4">
-            <div class="w-9 h-9 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
-              <span class="text-primary-light text-sm font-medium">{{ step.num }}</span>
-            </div>
-            <div>
-              <p class="font-medium text-primary-dark text-sm mb-1">{{ step.title }}</p>
-              <p class="text-xs text-gray-500 leading-relaxed">{{ step.desc }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── CTA ───────────────────────────────────────────────────────────────── -->
-    <section class="bg-primary-dark px-4 sm:px-6 py-16 text-center">
-      <h2 class="font-display text-2xl font-semibold text-primary-light mb-3">Ready to get started?</h2>
-      <p class="text-primary-light/50 text-sm mb-8">Create your free resident account today.</p>
-      <RouterLink to="/register" class="btn-primary gap-2">
-        <UserPlusIcon class="w-4 h-4" />
-        Create account
-      </RouterLink>
-    </section>
-
   </div>
 </template>
 
 <script setup>
 import { RouterLink } from 'vue-router'
 import {
-  MapPinIcon,
-  UserPlusIcon,
-  ChevronDownIcon,
-  ExclamationTriangleIcon,
-  CalendarDaysIcon,
+  ArrowRightIcon,
+  ArrowTopRightOnSquareIcon,
   BellIcon,
-  ArrowPathIcon,
+  CalendarDaysIcon,
+  ExclamationTriangleIcon,
+  MapPinIcon,
 } from '@heroicons/vue/24/outline'
-
-const stats = [
-  { value: '5',         label: 'Online services' },
-  { value: '24/7',      label: 'Portal access'   },
-  { value: 'Real-time', label: 'Notifications'   },
-]
-
+import logo from '@/assets/barangay-manggahan-logo.png'
 const services = [
   {
-    icon: ExclamationTriangleIcon,
-    label: 'Incident reports',
-    desc: 'File and track reports with photo and location details.',
-  },
-  {
+    title: 'Book an appointment',
+    description: 'Submit your request and receive the next available date and time.',
     icon: CalendarDaysIcon,
-    label: 'Appointments',
-    desc: 'Book slots with barangay officials online.',
+    iconStyle: 'bg-green-100 text-green-800',
+    route: { name: 'resident-appointments-new' },
+    action: 'Book an appointment',
   },
   {
+    title: 'Report an incident',
+    description: 'Send barangay staff a report with the location, details, and an optional photo.',
+    icon: ExclamationTriangleIcon,
+    iconStyle: 'bg-amber-100 text-amber-800',
+    route: { name: 'resident-incidents-new' },
+    action: 'File a report',
+  },
+  {
+    title: 'Read community alerts',
+    description: 'Check barangay advisories and announcements in your resident portal.',
     icon: BellIcon,
-    label: 'Community alerts',
-    desc: 'Get notified on announcements instantly.',
-  },
-  {
-    icon: ArrowPathIcon,
-    label: 'Waste concerns',
-    desc: 'Log sanitation concerns for admin action.',
-  },
-]
-
-const steps = [
-  {
-    num: 1,
-    title: 'Register your account',
-    desc: 'Fill in your basic info. The barangay admin reviews and approves your account.',
-  },
-  {
-    num: 2,
-    title: 'Verify your email',
-    desc: 'Check your inbox and click the verification link we send you.',
-  },
-  {
-    num: 3,
-    title: 'Access your portal',
-    desc: 'Once approved, log in and start using all barangay services online.',
+    iconStyle: 'bg-blue-100 text-blue-800',
+    route: { name: 'resident-alerts' },
+    action: 'Open alerts',
   },
 ]
 </script>

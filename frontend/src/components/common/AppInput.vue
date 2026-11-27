@@ -25,7 +25,7 @@
         @blur="$emit('blur', $event)"
         v-bind="$attrs"
       />
-      <div v-if="$slots.suffix" class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400">
+      <div v-if="$slots.suffix" class="absolute inset-y-0 right-3 flex items-center text-gray-400">
         <slot name="suffix" />
       </div>
     </div>

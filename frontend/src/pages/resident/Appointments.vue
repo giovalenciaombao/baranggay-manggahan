@@ -70,7 +70,7 @@
 
             <!-- Original schedule (kung na-resched) -->
             <p v-if="item.original_date" class="text-xs text-gray-400 mt-0.5 line-through">
-              You requested: {{ formatDate(item.original_date) }} · {{ item.original_time }}
+              Previous schedule: {{ formatDate(item.original_date) }} · {{ item.original_time }}
             </p>
 
             <!-- Resident notes -->

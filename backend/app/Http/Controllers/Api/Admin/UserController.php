@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Notification;
 use App\Models\User;
+use App\Services\AccountMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -56,6 +57,7 @@ class UserController extends Controller
             $data['verified_at'] = now();
         }
 
+        $statusChanged = $user->status !== $request->status;
         $user->update($data);
 
         if (in_array($request->status, ['suspended', 'rejected'])) {
@@ -81,6 +83,10 @@ class UserController extends Controller
             'title'   => $titles[$request->status],
             'message' => $messages[$request->status],
         ]);
+
+        if ($statusChanged) {
+            AccountMail::send($user, $titles[$request->status], $messages[$request->status]);
+        }
 
         return response()->json([
             'message' => 'User status updated.',

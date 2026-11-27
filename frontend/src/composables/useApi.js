@@ -53,12 +53,6 @@ export const alertService = {
   remove:   (id)     => api.delete(`/alerts/${id}`),
 }
 
-export const wasteService = {
-  getAll:   (params) => api.get('/waste', { params }),
-  create:   (data)   => api.post('/waste', data),
-  update:   (id, d)  => api.put(`/waste/${id}`, d),
-}
-
 export const userService = {
   getAll:   (params)  => api.get('/admin/users', { params }),
   approve:  (id)      => api.post(`/admin/users/${id}/approve`),

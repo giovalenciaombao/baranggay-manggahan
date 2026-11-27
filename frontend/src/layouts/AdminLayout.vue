@@ -1,22 +1,18 @@
 <template>
-  <div class="min-h-screen bg-gray-50 flex">
+  <div class="min-h-screen bg-primary-50 flex">
 
     <!-- Sidebar -->
     <aside
-      class="fixed inset-y-0 left-0 z-40 w-64 bg-primary-dark flex flex-col
+      class="fixed inset-y-0 left-0 z-40 w-64 barangay-sidebar flex flex-col
              transition-transform duration-300 ease-in-out
              -translate-x-full lg:translate-x-0"
       :class="{ 'translate-x-0': sidebarOpen }"
     >
       <!-- Logo -->
       <div class="flex items-center gap-3 px-5 py-5 border-b border-white/10">
-        <div class="w-9 h-9 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
-          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/>
-          </svg>
-        </div>
+        <img :src="logo" alt="" width="44" height="44" class="h-11 w-11 rounded-full bg-white" />
         <div>
-          <p class="font-display font-semibold text-white text-sm leading-none">Brgy. Manggahan</p>
+          <p class="font-display font-semibold text-white text-sm leading-none">Barangay Manggahan</p>
         </div>
       </div>
 
@@ -44,8 +40,6 @@
         <SidebarLink to="/admin/incidents"    icon="alert"    label="Incidents"       @click="sidebarOpen = false" />
         <SidebarLink to="/admin/appointments" icon="calendar" label="Appointments"    @click="sidebarOpen = false" />
         <SidebarLink to="/admin/alerts"       icon="bell"     label="Alerts"          @click="sidebarOpen = false" />
-        <SidebarLink to="/admin/waste"        icon="recycle"  label="Waste Mgmt"      @click="sidebarOpen = false" />
-        <SidebarLink to="/admin/waste-schedules" icon="recycle" label="Truck Schedule" @click="sidebarOpen = false" />
 
         <p class="px-3 text-xs font-medium text-primary-light/30 uppercase tracking-wider mt-4 mb-2">Data</p>
         <SidebarLink to="/admin/reports"    icon="file-text"  label="Reports & CSV"  @click="sidebarOpen = false" />
@@ -81,9 +75,9 @@
     />
 
     <!-- Main -->
-    <div class="flex-1 lg:ml-64 flex flex-col min-h-screen">
+    <div class="flex-1 lg:ml-64 min-w-0 flex flex-col min-h-screen">
       <!-- Topbar -->
-      <header class="sticky top-0 z-20 bg-white border-b border-gray-100 h-16 flex items-center px-4 sm:px-6 gap-3">
+      <header class="sticky top-0 z-20 bg-white/95 border-b border-primary/10 backdrop-blur h-16 flex items-center px-4 sm:px-6 gap-3">
         <button
           @click="sidebarOpen = true"
           class="lg:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-500"
@@ -112,6 +106,7 @@ import { RouterView, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
 import SidebarLink from '@/components/layout/SidebarLink.vue'
+import logo from '@/assets/barangay-manggahan-logo.png'
 
 const authStore = useAuthStore()
 const route     = useRoute()

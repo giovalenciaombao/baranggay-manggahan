@@ -8,7 +8,7 @@
       </button>
       <div>
         <h1 class="text-xl font-semibold text-primary-dark">Book an Appointment</h1>
-        <p class="text-sm text-gray-400 mt-0.5">Fill in the details below.</p>
+        <p class="text-sm text-gray-400 mt-0.5">Submit your request and the system will assign the next available date and time.</p>
       </div>
     </div>
 
@@ -33,31 +33,6 @@
           <option v-for="p in purposes" :key="p" :value="p">{{ p }}</option>
         </select>
         <p v-if="errors.purpose" class="text-xs text-red-500 mt-1">{{ errors.purpose }}</p>
-      </div>
-
-      <!-- Date -->
-      <AppInput
-        v-model="form.date"
-        label="Preferred date"
-        type="date"
-        :min="today"
-        :error="errors.date"
-        required
-      />
-
-      <!-- Time -->
-      <div>
-        <label class="block text-sm font-medium text-gray-600 mb-1">
-          Preferred time <span class="text-red-400">*</span>
-        </label>
-        <select
-          v-model="form.time"
-          class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary"
-        >
-          <option value="" disabled>Select a time slot</option>
-          <option v-for="t in timeSlots" :key="t" :value="t">{{ t }}</option>
-        </select>
-        <p v-if="errors.time" class="text-xs text-red-500 mt-1">{{ errors.time }}</p>
       </div>
 
       <!-- Notes -->
@@ -96,7 +71,7 @@ import {
   CalendarDaysIcon,
 } from '@heroicons/vue/24/outline'
 import api from '@/services/api'
-import AppInput from '@/components/common/AppInput.vue'
+import { formatDate } from '@/utils/formatters'
 import AppButton from '@/components/common/AppButton.vue'
 
 const router = useRouter()
@@ -104,7 +79,6 @@ const toast  = useToast()
 
 const loading  = ref(false)
 const apiError = ref('')
-const today    = new Date().toISOString().split('T')[0]
 
 const purposes = [
   'Barangay ID Renewal',
@@ -116,38 +90,28 @@ const purposes = [
   'Others',
 ]
 
-const timeSlots = [
-  '8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM',
-  '1:00 PM', '2:00 PM', '3:00 PM',  '4:00 PM',
-]
-
 const form = reactive({
   purpose: '',
-  date:    '',
-  time:    '',
   notes:   '',
 })
 
 const errors = reactive({
   purpose: '',
-  date:    '',
-  time:    '',
 })
 
 function validate() {
   errors.purpose = !form.purpose ? 'Purpose is required.' : ''
-  errors.date    = !form.date    ? 'Date is required.'    : ''
-  errors.time    = !form.time    ? 'Time is required.'    : ''
   return Object.values(errors).every(e => !e)
 }
 
 async function handleSubmit() {
-  if (!validate()) return
+  if (loading.value || !validate()) return
   loading.value  = true
   apiError.value = ''
   try {
-    await api.post('/appointments', form)
-    toast.success('Appointment booked! Awaiting confirmation.')
+    const { data } = await api.post('/appointments', form)
+    const { date, time } = data.appointment
+    toast.success('Assigned ' + formatDate(date) + ' at ' + time + '. Awaiting approval.')
     router.push({ name: 'resident-appointments' })
   } catch (err) {
     apiError.value = err.response?.data?.message || 'Failed to book. Please try again.'
