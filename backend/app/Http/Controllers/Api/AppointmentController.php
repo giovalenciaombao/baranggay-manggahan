@@ -66,7 +66,10 @@ class AppointmentController extends Controller
         $request->validate([
             'purpose' => 'required|string|max:255',
             'notes'   => 'nullable|string',
-            'document' => 'nullable|file|max:2048|extensions:rtf,docx|mimes:rtf,docx',
+            'document' => [
+                Rule::requiredIf($request->routeIs('appointments.with-document')),
+                'nullable', 'file', 'max:2048', 'extensions:rtf,docx', 'mimes:rtf,docx',
+            ],
         ]);
 
         $file = $request->file('document');

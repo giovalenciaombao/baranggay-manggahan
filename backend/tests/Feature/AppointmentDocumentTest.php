@@ -16,7 +16,7 @@ class AppointmentDocumentTest extends TestCase
     {
         Sanctum::actingAs($this->activeUser('resident'));
         $contents = '{\rtf1\ansi Completed applicant information}';
-        $booking = $this->post('/api/appointments', [
+        $booking = $this->post('/api/appointments/with-document', [
             'purpose' => 'Certificate of Residency',
             'document' => UploadedFile::fake()->createWithContent('completed.rtf', $contents),
         ], ['Accept' => 'application/json'])

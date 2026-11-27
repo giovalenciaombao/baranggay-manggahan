@@ -172,7 +172,8 @@ async function handleSubmit() {
   loading.value = true
   try {
     const config = template.value ? { headers: { 'Content-Type': 'multipart/form-data' } } : {}
-    const { data } = await api.post('/appointments', payload, config)
+    const endpoint = template.value ? '/appointments/with-document' : '/appointments'
+    const { data } = await api.post(endpoint, payload, config)
     clearDraft()
     const { date, time } = data.appointment
     if (payload instanceof FormData && !data.document_attached) {
@@ -182,7 +183,9 @@ async function handleSubmit() {
     }
     router.push({ name: 'resident-appointments' })
   } catch (err) {
-    apiError.value = err.response?.data?.errors?.document?.[0] || err.response?.data?.message || 'Failed to book. Please try again.'
+    apiError.value = template.value && err.response?.status === 404
+      ? 'Document booking is temporarily unavailable. Please try again shortly.'
+      : err.response?.data?.errors?.document?.[0] || err.response?.data?.message || 'Failed to book. Please try again.'
   } finally {
     loading.value = false
   }

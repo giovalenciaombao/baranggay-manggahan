@@ -54,6 +54,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/appointments',               [AppointmentController::class, 'index']);
         Route::get('/appointments/availability',  [AppointmentController::class, 'availability']);
         Route::post('/appointments',              [AppointmentController::class, 'store']);
+        Route::post('/appointments/with-document', [AppointmentController::class, 'store'])->name('appointments.with-document');
         Route::get('/appointments/{appointment}', [AppointmentController::class, 'show']);
 
         // Notifications
