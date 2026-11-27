@@ -52,6 +52,7 @@
 
           <AppInput
             v-model="form.email"
+            @update:model-value="clearEmailError"
             label="Email address"
             type="email"
             placeholder="you@example.com"
@@ -302,6 +303,11 @@ function validate() {
   errors.password_confirmation = form.password !== form.password_confirmation
                                   ? 'Passwords do not match.' : ''
   return Object.values(errors).every(e => !e)
+}
+
+function clearEmailError() {
+  if (apiError.value === errors.email) apiError.value = ''
+  errors.email = ''
 }
 
 async function handleRegister() {

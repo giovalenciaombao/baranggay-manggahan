@@ -5,11 +5,15 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\AccountMail;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
+
+use function Illuminate\Support\defer;
 
 class AuthController extends Controller
 {
@@ -18,7 +22,7 @@ class AuthController extends Controller
         $request->validate([
             'first_name'      => 'required|string|max:255',
             'last_name'       => 'required|string|max:255',
-            'email'           => 'required|email|unique:users',
+            'email'           => 'required|email|max:255',
             'contact_number'  => 'required|string',
             'address'         => 'required|string',
             'password'        => 'required|min:8|confirmed',
@@ -32,7 +36,44 @@ class AuthController extends Controller
             'privacy_consent.accepted'  => 'Kailangan mong pumayag sa data privacy notice para magpatuloy.',
         ]);
 
-        $user = DB::transaction(function () use ($request) {
+        try {
+            $user = $this->createResident($request);
+        } catch (UniqueConstraintViolationException $exception) {
+            $existingUser = User::where('email', $request->email)->first();
+            if (!$existingUser) {
+                throw $exception;
+            }
+
+            if ($existingUser->role === 'resident'
+                && $existingUser->status === 'pending'
+                && $existingUser->has_proof
+                && Hash::check($request->password, $existingUser->password)) {
+                return response()->json([
+                    'message' => 'Your registration is already submitted and awaiting admin approval.',
+                ]);
+            }
+
+            throw ValidationException::withMessages([
+                'email' => 'An account already exists for this email. Try signing in with the original method.',
+            ]);
+        }
+
+        // Email delivery runs after the registration response has been sent.
+        defer(fn () => rescue(fn () => AccountMail::send(
+            $user,
+            'Barangay Manggahan Registration Received',
+            'We received your registration. Please wait for a barangay administrator to review it.',
+        )));
+
+        return response()->json([
+            'message' => 'Registration successful. Please wait for admin approval.',
+            'user'    => $user,
+        ], 201);
+    }
+
+    private function createResident(Request $request): User
+    {
+        return DB::transaction(function () use ($request) {
             $user = User::create([
                 'first_name'         => $request->first_name,
                 'last_name'          => $request->last_name,
@@ -51,17 +92,6 @@ class AuthController extends Controller
 
             return $user;
         });
-
-        AccountMail::send(
-            $user,
-            'Barangay Manggahan Registration Received',
-            'We received your registration. Please wait for a barangay administrator to review it.',
-        );
-
-        return response()->json([
-            'message' => 'Registration successful. Please wait for admin approval.',
-            'user'    => $user,
-        ], 201);
     }
 
     // Pending residents can submit or replace their document.
