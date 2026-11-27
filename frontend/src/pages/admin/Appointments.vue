@@ -202,12 +202,13 @@
           </div>
 
           <button
-            v-if="selectedItem.notes?.trim()"
+            v-if="selectedItem.document_extension || selectedItem.notes?.trim()"
             type="button"
+            :disabled="downloading"
             @click="downloadDocument(selectedItem)"
             class="w-full py-2 rounded-xl bg-primary text-white text-sm font-medium hover:opacity-90"
           >
-            Download Word Draft
+            {{ selectedItem.document_extension ? 'Download Submitted Document' : 'Download Word Draft' }}
           </button>
           <button
             @click="showModal = false"
@@ -236,7 +237,7 @@ import {
 import api from '@/services/api'
 import AppointmentStatusBadge from '@/components/appointments/AppointmentStatusBadge.vue'
 import AppointmentActionModal from '@/components/appointments/AppointmentActionModal.vue'
-import { buildAppointmentDocument } from '@/utils/appointmentDocument'
+import { buildAppointmentDocument, downloadAppointmentFile } from '@/utils/appointmentDocument'
 
 const toast        = useToast()
 const activeFilter = ref('all')
@@ -245,26 +246,35 @@ const loading      = ref(true)
 const showModal    = ref(false)
 const selectedItem = ref(null)
 const appointments = ref([])
+const downloading = ref(false)
 
-function downloadDocument(appointment) {
+async function downloadDocument(appointment) {
+  if (appointment.document_extension) {
+    downloading.value = true
+    try {
+      const { data } = await api.get('/admin/appointments/' + appointment.id + '/document', {
+        responseType: 'blob',
+      })
+      downloadAppointmentFile(data, 'appointment-' + appointment.id + '.' + appointment.document_extension)
+    } catch {
+      toast.error('Could not download the submitted document.')
+    } finally {
+      downloading.value = false
+    }
+    return
+  }
+
   const title = appointment.purpose === 'Business Permit'
     ? 'Barangay Clearance for Business Permit'
     : appointment.purpose
-  const document = buildAppointmentDocument({
+  const draft = buildAppointmentDocument({
     id: appointment.id,
     title,
     resident: appointment.resident,
     schedule: formatDate(appointment.date) + ' at ' + appointment.time,
     notes: appointment.notes,
   })
-  const url = URL.createObjectURL(new Blob([document], { type: 'application/rtf' }))
-  const link = window.document.createElement('a')
-  link.href = url
-  link.download = 'appointment-' + appointment.id + '-draft.rtf'
-  window.document.body.append(link)
-  link.click()
-  link.remove()
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  downloadAppointmentFile(new Blob([draft], { type: 'application/rtf' }), 'appointment-' + appointment.id + '-draft.rtf')
 }
 
 const actionModal = reactive({ open: false, appointment: null, action: 'rescheduled' })

@@ -77,6 +77,7 @@ Route::middleware('auth:sanctum')->group(function () {
             // Admin - view all records
             Route::get('/admin/incidents',    [IncidentController::class,    'adminIndex']);
             Route::get('/admin/appointments', [AppointmentController::class, 'adminIndex']);
+            Route::get('/admin/appointments/{appointment}/document', [AppointmentController::class, 'downloadDocument']);
 
             Route::get('/admin/incidents/{incident}/photo', [IncidentController::class, 'photo']);
 

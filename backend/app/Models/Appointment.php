@@ -43,4 +43,9 @@ class Appointment extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function document()
+    {
+        return $this->hasOne(AppointmentDocument::class);
+    }
 }

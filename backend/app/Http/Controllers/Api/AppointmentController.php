@@ -10,6 +10,7 @@ use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class AppointmentController extends Controller
@@ -65,9 +66,16 @@ class AppointmentController extends Controller
         $request->validate([
             'purpose' => 'required|string|max:255',
             'notes'   => 'nullable|string',
+            'document' => 'nullable|file|max:2048|extensions:rtf,docx|mimes:rtf,docx',
         ]);
 
-        return $this->withScheduleLock(function () use ($request) {
+        $file = $request->file('document');
+        $document = $file ? [
+            'extension' => strtolower($file->getClientOriginalExtension()),
+            'contents' => base64_encode($file->get()),
+        ] : null;
+
+        return $this->withScheduleLock(function () use ($request, $document) {
             $now = now('Asia/Manila');
             $date = $now->copy()->startOfDay();
             $end = $date->copy()->addDays(90);
@@ -88,18 +96,26 @@ class AppointmentController extends Controller
                             continue;
                         }
 
-                        $appointment = Appointment::create([
-                            'user_id' => $request->user()->id,
-                            'purpose' => $request->purpose,
-                            'date'    => $day,
-                            'time'    => $time,
-                            'notes'   => $request->notes,
-                            'status'  => Appointment::STATUS_PENDING,
-                        ]);
+                        $appointment = DB::transaction(function () use ($request, $day, $time, $document) {
+                            $appointment = Appointment::create([
+                                'user_id' => $request->user()->id,
+                                'purpose' => $request->purpose,
+                                'date'    => $day,
+                                'time'    => $time,
+                                'notes'   => $request->notes,
+                                'status'  => Appointment::STATUS_PENDING,
+                            ]);
+                            if ($document) {
+                                $appointment->document()->create($document);
+                            }
+
+                            return $appointment;
+                        });
 
                         return response()->json([
                             'message'     => 'Appointment date and time assigned.',
                             'appointment' => $appointment,
+                            'document_attached' => $document !== null,
                         ], 201);
                     }
                 }
@@ -197,10 +213,24 @@ class AppointmentController extends Controller
     public function adminIndex()
     {
         $appointments = Appointment::with('user:id,first_name,last_name')
+            ->withAggregate('document as document_extension', 'extension')
             ->latest()
             ->get();
 
         return response()->json(['appointments' => $appointments]);
+    }
+
+    public function downloadDocument(Appointment $appointment)
+    {
+        $document = $appointment->document()->firstOrFail();
+        $filename = "appointment-{$appointment->id}.{$document->extension}";
+
+        return response(base64_decode($document->contents), 200, [
+            'Content-Type' => 'application/octet-stream',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'private, no-store',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     private function notifyResident(Appointment $appointment, string $status): void
