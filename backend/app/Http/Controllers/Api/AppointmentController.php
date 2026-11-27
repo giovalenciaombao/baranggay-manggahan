@@ -12,10 +12,12 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class AppointmentController extends Controller
 {
     private const BOOKED_MESSAGE = 'That time slot is already booked. Please choose another time or date.';
+    private const TIMEZONE = 'Asia/Manila';
 
     private function occupyingStatuses(): array
     {
@@ -46,7 +48,11 @@ class AppointmentController extends Controller
 
     public function availability(Request $request)
     {
-        $request->validate(['date' => 'required|date']);
+        $request->validate(['date' => 'required|date_format:Y-m-d']);
+        $date = Carbon::parse($request->date, self::TIMEZONE);
+        if ($date->isWeekend()) {
+            return response()->json(['date' => $request->date, 'slots' => [], 'taken' => []]);
+        }
 
         $taken = Appointment::whereDate('date', $request->date)
             ->whereIn('status', $this->occupyingStatuses())
@@ -79,7 +85,7 @@ class AppointmentController extends Controller
         ] : null;
 
         return $this->withScheduleLock(function () use ($request, $document) {
-            $now = now('Asia/Manila');
+            $now = now(self::TIMEZONE);
             $date = $now->copy()->startOfDay();
             $end = $date->copy()->addDays(90);
 
@@ -153,7 +159,7 @@ class AppointmentController extends Controller
     {
         $request->validate([
             'status'     => ['required', Rule::in(Appointment::STATUSES)],
-            'date'       => 'required_if:status,rescheduled|nullable|date|after_or_equal:today',
+            'date'       => 'required_if:status,rescheduled|nullable|date_format:Y-m-d',
             'time'       => ['required_if:status,rescheduled', 'nullable', 'string', Rule::in(Appointment::TIME_SLOTS)],
             'admin_note' => 'required_if:status,rescheduled,cancelled|nullable|string|max:1000',
         ], [
@@ -174,6 +180,20 @@ class AppointmentController extends Controller
         }
 
         $status = $request->status;
+
+        if ($status === Appointment::STATUS_RESCHEDULED) {
+            $slot = Carbon::parse("$request->date $request->time", self::TIMEZONE);
+            if ($slot->isWeekend()) {
+                throw ValidationException::withMessages([
+                    'date' => 'Appointments are available Monday through Friday.',
+                ]);
+            }
+            if ($slot <= now(self::TIMEZONE)) {
+                throw ValidationException::withMessages([
+                    'time' => 'Please choose a future appointment slot.',
+                ]);
+            }
+        }
 
         // Rescheduling into a slot that is already taken by someone else
         if ($status === Appointment::STATUS_RESCHEDULED

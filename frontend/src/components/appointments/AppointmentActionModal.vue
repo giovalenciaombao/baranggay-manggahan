@@ -29,7 +29,7 @@
             v-model="form.date"
             label="New date"
             type="date"
-            :min="today"
+            :min="today()"
             :error="errors.date"
             required
           />
@@ -110,7 +110,7 @@ const emit = defineEmits(['close', 'updated'])
 
 const toast = useToast()
 
-const today = new Date().toISOString().split('T')[0]
+const today = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Manila' }).format(new Date())
 
 const timeSlots = [
   '8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM',
@@ -143,6 +143,12 @@ function validate() {
   errors.admin_note = !form.admin_note.trim() ? 'Reason/note is required.' : ''
   errors.date = isReschedule.value && !form.date ? 'New date is required.' : ''
   errors.time = isReschedule.value && !form.time ? 'New time is required.' : ''
+  if (isReschedule.value && form.date) {
+    const day = new Date(form.date + 'T00:00:00Z').getUTCDay()
+    if (day === 0 || day === 6) {
+      errors.date = 'Appointments are available Monday through Friday.'
+    }
+  }
   return !errors.date && !errors.time && !errors.admin_note
 }
 

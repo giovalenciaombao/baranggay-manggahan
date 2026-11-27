@@ -9,6 +9,7 @@
       <div>
         <h1 class="text-xl font-semibold text-primary-dark">Book an Appointment</h1>
         <p class="text-sm text-gray-500 mt-0.5">Send your details so barangay staff can prepare your document or review your request. The system will assign the next available date and time. Wait for staff approval before visiting.</p>
+        <p class="text-sm text-gray-500 mt-1">Office hours are Monday to Friday, 8:00 AM to 5:00 PM Philippine time.</p>
       </div>
     </div>
 
