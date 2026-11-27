@@ -26,7 +26,7 @@
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">Document type</label>
           <select
-            v-model="proofType"
+            v-model="proofDraft.type"
             class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
           >
             <option value="">Select document type</option>
@@ -97,6 +97,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { ArrowUpTrayIcon, ExclamationCircleIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
+import { useFormDraft } from '@/composables/useFormDraft'
 import AppButton from '@/components/common/AppButton.vue'
 import PrivacyConsent from '@/components/common/PrivacyConsent.vue'
 
@@ -112,7 +113,8 @@ const booting  = ref(true)
 const loading  = ref(false)
 const apiError = ref('')
 
-const proofType    = ref('')
+const { form: proofDraft, restoreDraft: restoreProofDraft, clearDraft: clearProofDraft } =
+  useFormDraft('residency-proof', { type: '' })
 const proofFile    = ref(null)
 const proofPreview = ref('')
 const consent      = ref(false)
@@ -130,6 +132,7 @@ onMounted(async () => {
   const queryToken = route.query.token
   if (queryToken) {
     await authStore.loginWithToken(String(queryToken))
+    restoreProofDraft('residency-proof')
     // Tanggalin ang token sa URL
     router.replace({ name: 'pending-approval' })
   }
@@ -175,7 +178,7 @@ function onProofChange(e) {
 onBeforeUnmount(clearPreview)
 
 async function submitProof() {
-  errors.proof_type = proofType.value ? '' : 'Select a document type.'
+  errors.proof_type = proofDraft.type ? '' : 'Select a document type.'
   if (!proofFile.value && !errors.proof) errors.proof = 'Please upload your proof of residency.'
   errors.consent = consent.value ? '' : 'Kailangan mong pumayag para magpatuloy.'
   if (errors.proof_type || errors.proof || errors.consent) return
@@ -184,11 +187,12 @@ async function submitProof() {
   apiError.value = ''
   try {
     const fd = new FormData()
-    fd.append('proof_type', proofType.value)
+    fd.append('proof_type', proofDraft.type)
     fd.append('proof', proofFile.value)
     fd.append('privacy_consent', consent.value ? '1' : '0')
 
     await authStore.uploadProof(fd)
+    clearProofDraft()
     clearPreview()
     toast.success('Proof submitted! Please wait for admin review.')
   } catch (err) {

@@ -29,6 +29,9 @@
         </div>
 
         <form @submit.prevent="handleRegister" novalidate>
+          <p class="mb-4 text-xs leading-relaxed text-gray-600">
+            Your typed details stay in this tab if you refresh. Re-enter your password, select your document, and confirm consent again after a refresh.
+          </p>
           <!-- Name row -->
           <div class="grid grid-cols-2 gap-3">
             <AppInput
@@ -212,6 +215,7 @@ import AppInput from '@/components/common/AppInput.vue'
 import AppButton from '@/components/common/AppButton.vue'
 import GoogleIcon from '@/components/common/GoogleIcon.vue'
 import PrivacyConsent from '@/components/common/PrivacyConsent.vue'
+import { useFormDraft } from '@/composables/useFormDraft'
 
 const authStore = useAuthStore()
 const router    = useRouter()
@@ -229,16 +233,16 @@ const proofFile    = ref(null)
 const proofPreview = ref('')
 const consent      = ref(false)
 
-const form = reactive({
+const { form, clearDraft } = useFormDraft('registration', {
   first_name:            '',
   last_name:             '',
   email:                 '',
   contact_number:        '',
   address:               '',
   proof_type:            '',
-  password:              '',
-  password_confirmation: '',
-})
+}, { guest: true })
+form.password = ''
+form.password_confirmation = ''
 
 const errors = reactive({
   first_name:            '',
@@ -301,7 +305,7 @@ function validate() {
 }
 
 async function handleRegister() {
-  if (!validate()) return
+  if (loading.value || !validate()) return
   loading.value  = true
   apiError.value = ''
   try {
@@ -311,6 +315,7 @@ async function handleRegister() {
     fd.append('privacy_consent', consent.value ? '1' : '0')
 
     await authStore.register(fd)
+    clearDraft()
     router.push('/pending-approval')
   } catch (err) {
     const serverErrors = err.response?.data?.errors

@@ -162,6 +162,7 @@ import {
   WrenchScrewdriverIcon,
 } from '@heroicons/vue/24/outline'
 import api from '@/services/api'
+import { useFormDraft } from '@/composables/useFormDraft'
 import AppButton from '@/components/common/AppButton.vue'
 import AppBadge from '@/components/common/AppBadge.vue'
 import AppInput from '@/components/common/AppInput.vue'
@@ -203,21 +204,16 @@ const filtered = computed(() =>
     : alertsWithConfig.value.filter(a => a.type === activeFilter.value)
 )
 
-const form   = reactive({ type: '', title: '', message: '' })
+const { form, restoreDraft, clearDraft } = useFormDraft(null, { type: '', title: '', message: '' })
 const errors = reactive({ type: '', title: '', message: '' })
 
 function openModal(item = null) {
-  if (item) {
-    editingId.value = item.id
-    form.type       = item.type
-    form.title      = item.title
-    form.message    = item.message
-  } else {
-    editingId.value = null
-    form.type       = ''
-    form.title      = ''
-    form.message    = ''
-  }
+  editingId.value = item?.id ?? null
+  restoreDraft('alert:' + (item?.id ?? 'new'), {
+    type: item?.type ?? '',
+    title: item?.title ?? '',
+    message: item?.message ?? '',
+  })
   errors.type    = ''
   errors.title   = ''
   errors.message = ''
@@ -249,6 +245,7 @@ async function handleSubmit() {
       alerts.value.unshift(data.alert)
       toast.success('Alert posted!')
     }
+    clearDraft()
     closeModal()
   } catch (err) {
     toast.error(err.response?.data?.message || 'Failed to save alert.')

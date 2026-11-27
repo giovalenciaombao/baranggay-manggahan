@@ -97,6 +97,7 @@ import { ref, reactive, computed, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import api from '@/services/api'
 import AppInput from '@/components/common/AppInput.vue'
+import { useFormDraft } from '@/composables/useFormDraft'
 
 const props = defineProps({
   open:        { type: Boolean, default: false },
@@ -119,16 +120,14 @@ const timeSlots = [
 const loading  = ref(false)
 const apiError = ref('')
 
-const form   = reactive({ date: '', time: '', admin_note: '' })
+const { form, restoreDraft, clearDraft } = useFormDraft(null, { date: '', time: '', admin_note: '' })
 const errors = reactive({ date: '', time: '', admin_note: '' })
 
 const isReschedule = computed(() => props.action === 'rescheduled')
 
 watch(() => props.open, (isOpen) => {
-  if (!isOpen) return
-  form.date       = ''
-  form.time       = ''
-  form.admin_note = ''
+  if (!isOpen || !props.appointment) return
+  restoreDraft('appointment-action:' + props.appointment.id + ':' + props.action)
   errors.date = errors.time = errors.admin_note = ''
   apiError.value = ''
 })
@@ -168,6 +167,7 @@ async function submit() {
 
   try {
     const { data } = await api.put(`/appointments/${props.appointment.id}`, payload)
+    clearDraft()
     toast.success(isReschedule.value ? 'Appointment rescheduled.' : 'Appointment cancelled.')
     emit('updated', data.appointment)
     emit('close')

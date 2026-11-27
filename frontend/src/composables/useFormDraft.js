@@ -1,21 +1,32 @@
 import { reactive, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 
-export function useFormDraft(name, defaults) {
-  const userId = useAuthStore().user?.id
-  const key = userId ? `manggahan:draft:${userId}:${name}` : null
+export function useFormDraft(name, defaults, { guest = false } = {}) {
+  const authStore = guest ? null : useAuthStore()
   const fields = Object.keys(defaults)
   const form = reactive({ ...defaults })
+  let key
+  let baseline = defaults
+  let restoring = false
 
-  if (key) {
-    try {
-      const saved = JSON.parse(sessionStorage.getItem(key))
-      for (const field of fields) {
-        if (typeof saved?.[field] === 'string') form[field] = saved[field]
+  function restoreDraft(draftName, initialValues = defaults) {
+    const owner = guest ? 'guest' : authStore.user?.id
+    key = owner && draftName ? 'manggahan:draft:' + owner + ':' + draftName : null
+    baseline = { ...initialValues }
+    let saved
+    if (key) {
+      try {
+        saved = JSON.parse(sessionStorage.getItem(key))
+      } catch {
+        // The form still works if browser storage is unavailable.
       }
-    } catch {
-      // The form still works if browser storage is unavailable.
     }
+
+    restoring = true
+    for (const field of fields) {
+      form[field] = typeof saved?.[field] === 'string' ? saved[field] : baseline[field]
+    }
+    restoring = false
   }
 
   function clearDraft() {
@@ -27,19 +38,22 @@ export function useFormDraft(name, defaults) {
     }
   }
 
-  watch(() => fields.map(field => form[field]), values => {
-    if (!key) return
-    if (values.every(value => value === '')) {
+  restoreDraft(name)
+  watch(() => fields.map(field => form[field]), () => {
+    if (!key || restoring) return
+
+    const changes = fields.filter(field => form[field] !== baseline[field])
+    if (!changes.length) {
       clearDraft()
       return
     }
     try {
-      const draft = Object.fromEntries(fields.map((field, index) => [field, values[index]]))
+      const draft = Object.fromEntries(changes.map(field => [field, form[field]]))
       sessionStorage.setItem(key, JSON.stringify(draft))
     } catch {
       // Browser storage may be disabled or full.
     }
   }, { flush: 'sync' })
 
-  return { form, clearDraft }
+  return { form, clearDraft, restoreDraft }
 }

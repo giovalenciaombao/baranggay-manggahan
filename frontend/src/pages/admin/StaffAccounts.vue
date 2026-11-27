@@ -194,6 +194,7 @@ import {
   EyeIcon, EyeSlashIcon, ArrowPathIcon,
 } from '@heroicons/vue/24/outline'
 import api from '@/services/api'
+import { useFormDraft } from '@/composables/useFormDraft'
 import { useAuthStore } from '@/stores/auth'
 import AppButton from '@/components/common/AppButton.vue'
 import AppBadge from '@/components/common/AppBadge.vue'
@@ -215,9 +216,10 @@ const resetPassword = ref('')
 const resetError  = ref('')
 const showResetPw = ref(false)
 
-const form = reactive({
-  first_name: '', last_name: '', email: '', contact_number: '', password: '',
+const { form, restoreDraft, clearDraft } = useFormDraft('staff-new', {
+  first_name: '', last_name: '', email: '', contact_number: '',
 })
+form.password = ''
 const errors = reactive({
   first_name: '', last_name: '', email: '', contact_number: '', password: '',
 })
@@ -245,7 +247,8 @@ function generatePassword(len = 10) {
 }
 
 function openCreate() {
-  Object.keys(form).forEach(k => (form[k] = ''))
+  restoreDraft('staff-new')
+  form.password = ''
   Object.keys(errors).forEach(k => (errors[k] = ''))
   showPw.value = false
   showCreate.value = true
@@ -265,6 +268,8 @@ async function submitCreate() {
   saving.value = true
   try {
     const { data } = await api.post('/admin/staff', { ...form })
+    clearDraft()
+    form.password = ''
     staff.value.push(data.staff)
     toast.success('Staff account created.')
     showCreate.value = false

@@ -218,7 +218,7 @@
             <div v-if="rejecting" class="space-y-2">
               <label class="block text-sm font-medium text-gray-700">Reason for rejection</label>
               <textarea
-                v-model="rejectReason"
+                v-model="rejectionDraft.reason"
                 rows="3"
                 placeholder="e.g. The uploaded ID is blurred / address is outside Barangay Manggahan"
                 class="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary"
@@ -279,6 +279,7 @@ import {
   EyeIcon,
 } from '@heroicons/vue/24/outline'
 import api from '@/services/api'
+import { useFormDraft } from '@/composables/useFormDraft'
 import AppBadge from '@/components/common/AppBadge.vue'
 
 const toast        = useToast()
@@ -296,7 +297,8 @@ const proofMime    = ref('')
 const proofLoading = ref(false)
 const proofError   = ref('')
 const rejecting    = ref(false)
-const rejectReason = ref('')
+const { form: rejectionDraft, restoreDraft: restoreRejectionDraft, clearDraft: clearRejectionDraft } =
+  useFormDraft(null, { reason: '' })
 const rejectError  = ref('')
 const saving       = ref(false)
 
@@ -396,8 +398,8 @@ async function loadProof(userId) {
 
 function openReview(user) {
   selectedId.value   = user.id
-  rejecting.value    = false
-  rejectReason.value = ''
+  restoreRejectionDraft('resident-rejection:' + user.id)
+  rejecting.value    = user.statusKey === 'pending' && Boolean(rejectionDraft.reason)
   rejectError.value  = ''
   proofError.value   = ''
   revokeProof()
@@ -443,17 +445,23 @@ async function submitStatus(id, status, reason = null) {
 
 async function approve() {
   const ok = await submitStatus(selectedId.value, 'active')
-  if (ok) closeReview()
+  if (ok) {
+    clearRejectionDraft()
+    closeReview()
+  }
 }
 
 async function confirmReject() {
-  if (!rejectReason.value.trim()) {
+  if (!rejectionDraft.reason.trim()) {
     rejectError.value = 'Please give a reason for the rejection.'
     return
   }
   rejectError.value = ''
-  const ok = await submitStatus(selectedId.value, 'rejected', rejectReason.value.trim())
-  if (ok) closeReview()
+  const ok = await submitStatus(selectedId.value, 'rejected', rejectionDraft.reason.trim())
+  if (ok) {
+    clearRejectionDraft()
+    closeReview()
+  }
 }
 
 // Suspend / reactivate (non-pending users)

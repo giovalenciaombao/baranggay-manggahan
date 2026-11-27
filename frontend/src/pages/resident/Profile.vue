@@ -173,6 +173,7 @@ import { useAuthStore } from '@/stores/auth'
 import AppInput from '@/components/common/AppInput.vue'
 import AppButton from '@/components/common/AppButton.vue'
 import AppBadge from '@/components/common/AppBadge.vue'
+import { useFormDraft } from '@/composables/useFormDraft'
 
 const authStore = useAuthStore()
 const toast     = useToast()
@@ -214,7 +215,7 @@ const loading  = ref(false)
 const saved    = ref(false)
 const apiError = ref('')
 
-const form = reactive({
+const { form, clearDraft, restoreDraft } = useFormDraft('profile', {
   first_name:     user.value?.first_name     ?? '',
   last_name:      user.value?.last_name      ?? '',
   email:          user.value?.email          ?? '',
@@ -242,6 +243,8 @@ async function handleSave() {
   saved.value    = false
   try {
     await authStore.updateProfile(form)
+    clearDraft()
+    restoreDraft('profile', form)
     saved.value = true
     toast.success('Profile updated!')
   } catch (err) {
