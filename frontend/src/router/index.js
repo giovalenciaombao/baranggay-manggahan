@@ -70,6 +70,12 @@ const routes = [
         meta: { title: 'File a Report' }
       },
       {
+        path: 'incidents/:id',
+        name: 'resident-incident-detail',
+        component: () => import('@/pages/resident/IncidentDetail.vue'),
+        meta: { title: 'Incident Details' }
+      },
+      {
         path: 'appointments',
         name: 'resident-appointments',
         component: () => import('@/pages/resident/Appointments.vue'),

@@ -137,7 +137,7 @@
               <p class="text-xs text-gray-400 mb-0.5">Date filed</p>
               <p class="text-gray-700">{{ selectedItem.date }}</p>
             </div>
-            <div v-if="selectedItem.photo">
+            <div v-if="selectedItem.has_photo || selectedItem.photo">
               <p class="text-xs text-gray-400 mb-1">Incident photo</p>
               <img v-if="photoUrl" :src="photoUrl" alt="Photo attached to the incident report" class="w-full max-h-64 object-contain rounded-xl" />
               <p v-else class="text-gray-500" role="status">{{ photoError || "Loading photo?" }}</p>
@@ -241,7 +241,7 @@ async function updateStatus(item) {
 watch(() => showModal.value ? selectedItem.value : null, async (item, _, onCleanup) => {
   photoUrl.value = ''
   photoError.value = ''
-  if (!item?.photo) return
+  if (!item?.has_photo && !item?.photo) return
 
   const controller = new AbortController()
   let objectUrl

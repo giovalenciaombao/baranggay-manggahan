@@ -11,6 +11,19 @@ class Incident extends Model
         'description', 'location', 'photo', 'status',
     ];
 
+    protected $appends = ['has_photo'];
+    protected $hidden = ['attachment_exists'];
+
+    public function attachment()
+    {
+        return $this->hasOne(IncidentPhoto::class);
+    }
+
+    public function getHasPhotoAttribute(): bool
+    {
+        return (bool) ($this->photo || $this->attachment_exists);
+    }
+
     public function user() {
         return $this->belongsTo(User::class);
     }

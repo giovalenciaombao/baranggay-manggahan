@@ -37,11 +37,11 @@
       </div>
 
       <div v-else class="space-y-3">
-        <div
+        <RouterLink
           v-for="item in filtered"
           :key="item.id"
           class="card rounded-2xl p-4 flex items-start gap-4 hover:shadow-sm transition-shadow cursor-pointer"
-          @click="router.push(`/portal/incidents/${item.id}`)"
+          :to="{ name: 'resident-incident-detail', params: { id: item.id } }"
         >
           <div :class="['w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0', item.iconBg]">
             <ExclamationCircleIcon :class="['w-5 h-5', item.iconColor]" />
@@ -56,7 +56,7 @@
             <p class="text-xs text-gray-400 mt-0.5 line-clamp-2">{{ item.description }}</p>
             <p class="text-xs text-gray-300 mt-1">{{ item.date }}</p>
           </div>
-        </div>
+        </RouterLink>
       </div>
 
     </div>
@@ -64,13 +64,12 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink } from 'vue-router'
 import { PlusIcon, ExclamationCircleIcon } from '@heroicons/vue/24/outline'
 import api from '@/services/api'
 import AppButton from '@/components/common/AppButton.vue'
 import AppBadge from '@/components/common/AppBadge.vue'
 
-const router       = useRouter()
 const activeFilter = ref('all')
 const loading      = ref(true)
 const incidents    = ref([])

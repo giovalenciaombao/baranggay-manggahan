@@ -6,13 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\Incident;
 use App\Services\AssistService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class IncidentController extends Controller
 {
     public function index(Request $request)
     {
-        $incidents = Incident::where('user_id', $request->user()->id)
+        $incidents = Incident::withExists('attachment')->where('user_id', $request->user()->id)
             ->latest()
             ->get();
 
@@ -29,24 +30,22 @@ class IncidentController extends Controller
             'photo'       => 'nullable|image|max:5120',
         ]);
 
-        $photoPath = null;
-        if ($request->hasFile('photo')) {
-            $photoPath = $request->file('photo')->store('incidents', 'public');
-        }
+        $incident = DB::transaction(function () use ($request) {
+            $incident = Incident::create([
+                ...$request->only('title', 'category', 'description', 'location'),
+                'user_id' => $request->user()->id,
+                'status'  => 'pending',
+            ]);
 
-        if ($photoPath === false) {
-            return response()->json(['message' => 'The photo could not be saved. Please try again.'], 503);
-        }
+            if ($file = $request->file('photo')) {
+                $incident->attachment()->create([
+                    'mime_type' => $file->getMimeType(),
+                    'contents' => $file->get(),
+                ]);
+            }
 
-        $incident = Incident::create([
-            'user_id'     => $request->user()->id,
-            'title'       => $request->title,
-            'category'    => $request->category,
-            'description' => $request->description,
-            'location'    => $request->location,
-            'photo'       => $photoPath,
-            'status'      => 'pending',
-        ]);
+            return $incident->loadExists('attachment');
+        });
 
         return response()->json([
             'message'  => 'Incident report submitted successfully.',
@@ -60,15 +59,26 @@ class IncidentController extends Controller
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
-        return response()->json(['incident' => $incident->load('user')]);
+        return response()->json(['incident' => $incident->load('user')->loadExists('attachment')]);
     }
 
-    public function photo(Incident $incident)
+    public function photo(Request $request, Incident $incident)
     {
+        abort_if($request->user()->role !== 'admin' && $incident->user_id !== $request->user()->id, 403);
+
+        $headers = ['Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff'];
+
+        if ($attachment = $incident->attachment()->first()) {
+            return response($attachment->contents, 200, [
+                ...$headers,
+                'Content-Type' => $attachment->mime_type,
+            ]);
+        }
+
         $disk = Storage::disk('public');
         abort_unless($incident->photo && $disk->exists($incident->photo), 404);
 
-        return $disk->response($incident->photo, null, ['Cache-Control' => 'private, no-store']);
+        return $disk->response($incident->photo, null, $headers);
     }
 
     // Admin only
@@ -102,14 +112,14 @@ class IncidentController extends Controller
 
         return response()->json([
             'message'  => 'Incident status updated.',
-            'incident' => $incident,
+            'incident' => $incident->loadExists('attachment'),
         ]);
     }
 
     // Admin - view all incidents
     public function adminIndex()
     {
-        $incidents = Incident::with('user:id,first_name,last_name')
+        $incidents = Incident::with('user:id,first_name,last_name')->withExists('attachment')
             ->latest()
             ->get();
 

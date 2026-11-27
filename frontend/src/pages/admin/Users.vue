@@ -269,6 +269,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import {
   MagnifyingGlassIcon,
@@ -281,6 +282,8 @@ import api from '@/services/api'
 import AppBadge from '@/components/common/AppBadge.vue'
 
 const toast        = useToast()
+const route        = useRoute()
+const router       = useRouter()
 const activeFilter = ref('all')
 const search       = ref('')
 const loading      = ref(true)
@@ -405,6 +408,10 @@ function closeReview() {
   selectedId.value = null
   rejecting.value  = false
   revokeProof()
+  if (route.query.review) {
+    const { review, ...query } = route.query
+    router.replace({ query })
+  }
 }
 
 // ─── Status updates ────────────────────────────────────────
@@ -458,6 +465,8 @@ onMounted(async () => {
   try {
     const { data } = await api.get('/admin/users')
     users.value = data.users
+    const requestedUser = usersWithMeta.value.find(user => String(user.id) === route.query.review)
+    if (requestedUser) openReview(requestedUser)
   } finally {
     loading.value = false
   }

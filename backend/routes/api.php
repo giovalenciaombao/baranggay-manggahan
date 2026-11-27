@@ -48,6 +48,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/incidents',            [IncidentController::class, 'index']);
         Route::post('/incidents',           [IncidentController::class, 'store']);
         Route::get('/incidents/{incident}', [IncidentController::class, 'show']);
+        Route::get('/incidents/{incident}/photo', [IncidentController::class, 'photo']);
 
         // Appointments (availability must come before the {appointment} wildcard)
         Route::get('/appointments',               [AppointmentController::class, 'index']);

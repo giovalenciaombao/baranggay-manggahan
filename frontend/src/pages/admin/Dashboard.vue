@@ -67,20 +67,12 @@
               </p>
               <p class="text-xs text-gray-400">{{ user.email }}</p>
             </div>
-            <div class="flex gap-1.5">
-              <button
-                @click="approveUser(user.id)"
-                class="p-1.5 rounded-lg bg-green-50 hover:bg-green-100 transition-colors"
-              >
-                <CheckIcon class="w-3.5 h-3.5 text-green-600" />
-              </button>
-              <button
-                @click="rejectUser(user.id)"
-                class="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
-              >
-                <XMarkIcon class="w-3.5 h-3.5 text-red-500" />
-              </button>
-            </div>
+            <RouterLink
+              :to="{ name: 'admin-users', query: { review: user.id } }"
+              class="btn-secondary shrink-0 px-3 py-1.5 text-xs"
+            >
+              Review
+            </RouterLink>
           </div>
         </div>
       </div>
@@ -127,15 +119,11 @@ import {
   ExclamationCircleIcon,
   CalendarDaysIcon,
   BellAlertIcon,
-  CheckIcon,
-  XMarkIcon,
 } from '@heroicons/vue/24/outline'
-import { useToast } from 'vue-toastification'
 import api from '@/services/api'
 import StatCard from '@/components/common/StatCard.vue'
 import AppBadge from '@/components/common/AppBadge.vue'
 
-const toast = useToast()
 
 const incidentChart    = ref(null)
 const appointmentChart = ref(null)
@@ -158,18 +146,6 @@ const statCards = computed(() => [
   { label: 'Appointments',    value: stats.value.total_appointments ?? 0, icon: CalendarDaysIcon,      color: 'green'  },
   { label: 'Active Alerts',   value: stats.value.active_alerts     ?? 0, icon: BellAlertIcon,         color: 'yellow' },
 ])
-
-async function approveUser(id) {
-  await api.put(`/admin/users/${id}/status`, { status: 'active' })
-  pendingUsers.value = pendingUsers.value.filter(u => u.id !== id)
-  toast.success('User approved!')
-}
-
-async function rejectUser(id) {
-  await api.put(`/admin/users/${id}/status`, { status: 'rejected' })
-  pendingUsers.value = pendingUsers.value.filter(u => u.id !== id)
-  toast.error('User rejected.')
-}
 
 function initials(user) {
   return `${user.first_name?.[0] ?? ''}${user.last_name?.[0] ?? ''}`.toUpperCase()
