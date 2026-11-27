@@ -168,7 +168,9 @@
             <p class="text-xs text-gray-400 mb-2">Proof of residency</p>
 
             <div v-if="!selectedUser.has_proof" class="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
-              This resident has not submitted proof of residency yet.
+              {{ selectedUser.proof_submitted_at
+                ? 'The proof file is missing. Ask the resident to sign in and upload it again.'
+                : 'This resident has not submitted proof of residency yet.' }}
             </div>
 
             <div v-else-if="proofLoading" class="border border-gray-200 rounded-xl py-10 text-center text-sm text-gray-400">
@@ -250,7 +252,7 @@
               </button>
               <button
                 @click="approve"
-                :disabled="saving || !selectedUser.has_proof"
+                :disabled="saving || !proofUrl"
                 class="flex-1 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
               >
                 {{ saving ? 'Saving...' : 'Approve' }}
@@ -373,13 +375,17 @@ async function loadProof(userId) {
   proofError.value   = ''
   revokeProof()
   try {
-    // Proof is on a private disk, so we fetch it with the admin token as a blob
+    // Fetch the private document using the admin token.
     const res = await api.get(`/admin/users/${userId}/proof`, { responseType: 'blob' })
     if (selectedId.value !== userId) return // modal was closed/changed meanwhile
     proofMime.value = res.data.type || ''
     proofUrl.value  = URL.createObjectURL(res.data)
-  } catch (_) {
-    if (selectedId.value === userId) proofError.value = 'Could not load the proof file.'
+  } catch (error) {
+    if (selectedId.value === userId) {
+      proofError.value = error.response?.status === 404
+        ? 'The proof file is missing. Ask the resident to sign in and upload it again.'
+        : 'Could not load the proof file. Close this window and try again.'
+    }
   } finally {
     if (selectedId.value === userId) proofLoading.value = false
   }

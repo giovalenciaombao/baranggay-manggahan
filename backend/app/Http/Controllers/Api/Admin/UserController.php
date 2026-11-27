@@ -13,7 +13,7 @@ class UserController extends Controller
 {
     public function index(Request $request)
     {
-        $users = User::where('role', 'resident')
+        $users = User::withExists('residencyProof')->where('role', 'resident')
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->search, fn($q) => $q->where(function($q) use ($request) {
                 $q->where('first_name', 'like', "%{$request->search}%")
@@ -41,7 +41,7 @@ class UserController extends Controller
 
         if ($user->status === 'pending'
             && $request->status === 'active'
-            && !$user->proof_path) {
+            && !$user->has_proof) {
             return response()->json([
                 'message' => 'Cannot approve: this resident has not submitted proof of residency.',
             ], 422);
@@ -97,10 +97,20 @@ class UserController extends Controller
     // Admin-only: stream the proof file (private disk)
     public function proof(User $user)
     {
+        $headers = ['Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff'];
+
+        if ($proof = $user->residencyProof()->first()) {
+            return response($proof->contents, 200, [
+                ...$headers,
+                'Content-Type' => $proof->mime_type,
+                'Content-Disposition' => 'inline',
+            ]);
+        }
+
         if (!$user->proof_path || !Storage::disk('local')->exists($user->proof_path)) {
             return response()->json(['message' => 'No proof uploaded.'], 404);
         }
 
-        return Storage::disk('local')->response($user->proof_path);
+        return Storage::disk('local')->response($user->proof_path, null, $headers);
     }
 }

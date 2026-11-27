@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\AccountMail;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 
@@ -30,23 +32,25 @@ class AuthController extends Controller
             'privacy_consent.accepted'  => 'Kailangan mong pumayag sa data privacy notice para magpatuloy.',
         ]);
 
-        // Private disk (storage/app/private) - NOT publicly accessible
-        $path = $request->file('proof')->store('proofs', 'local');
+        $user = DB::transaction(function () use ($request) {
+            $user = User::create([
+                'first_name'         => $request->first_name,
+                'last_name'          => $request->last_name,
+                'email'              => $request->email,
+                'contact_number'     => $request->contact_number,
+                'address'            => $request->address,
+                'password'           => $request->password,
+                'role'               => 'resident',
+                'status'             => 'pending',
+                'proof_type'         => $request->proof_type,
+                'proof_submitted_at' => now(),
+                'privacy_consent_at' => now(),
+            ]);
 
-        $user = User::create([
-            'first_name'         => $request->first_name,
-            'last_name'          => $request->last_name,
-            'email'              => $request->email,
-            'contact_number'     => $request->contact_number,
-            'address'            => $request->address,
-            'password'           => $request->password,
-            'role'               => 'resident',
-            'status'             => 'pending',
-            'proof_type'         => $request->proof_type,
-            'proof_path'         => $path,
-            'proof_submitted_at' => now(),
-            'privacy_consent_at' => now(),
-        ]);
+            $this->storeProof($user, $request->file('proof'));
+
+            return $user;
+        });
 
         AccountMail::send(
             $user,
@@ -60,7 +64,7 @@ class AuthController extends Controller
         ], 201);
     }
 
-    // For pending users who signed up via Google (no proof yet)
+    // Pending residents can submit or replace their document.
     public function uploadProof(Request $request)
     {
         $user = $request->user();
@@ -82,22 +86,32 @@ class AuthController extends Controller
             'privacy_consent.accepted'  => 'Kailangan mong pumayag sa data privacy notice para magpatuloy.',
         ]);
 
-        if ($user->proof_path) {
-            Storage::disk('local')->delete($user->proof_path);
+        $previousPath = $user->proof_path;
+        DB::transaction(function () use ($user, $request) {
+            $user->update([
+                'proof_type'         => $request->proof_type,
+                'proof_path'         => null,
+                'proof_submitted_at' => now(),
+                'privacy_consent_at' => now(),
+            ]);
+            $this->storeProof($user, $request->file('proof'));
+        });
+
+        if ($previousPath) {
+            Storage::disk('local')->delete($previousPath);
         }
-
-        $path = $request->file('proof')->store('proofs', 'local');
-
-        $user->update([
-            'proof_type'         => $request->proof_type,
-            'proof_path'         => $path,
-            'proof_submitted_at' => now(),
-            'privacy_consent_at' => now(),
-        ]);
 
         return response()->json([
             'message' => 'Proof submitted. Please wait for admin review.',
             'user'    => $user->fresh(),
+        ]);
+    }
+
+    private function storeProof(User $user, UploadedFile $file): void
+    {
+        $user->residencyProof()->updateOrCreate([], [
+            'mime_type' => $file->getMimeType(),
+            'contents' => $file->get(),
         ]);
     }
 
@@ -114,7 +128,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid credentials.'], 401);
         }
 
-        if ($user->status === 'pending') {
+        if ($user->status === 'pending' && $user->has_proof) {
             return response()->json(['message' => 'Your account is pending approval.'], 403);
         }
 

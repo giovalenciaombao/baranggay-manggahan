@@ -125,6 +125,10 @@ async function handleLogin() {
   apiError.value = ''
   try {
     const data = await authStore.login(form)
+    if (data.user.status === 'pending') {
+      await router.push({ name: 'pending-approval' })
+      return
+    }
     toast.success(`Welcome, ${data.user.first_name}!`)
     const redirect = new URLSearchParams(window.location.search).get('redirect')
     router.push(redirect || (data.user.role === 'admin' ? '/admin' : '/portal'))

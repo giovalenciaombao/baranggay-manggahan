@@ -8,6 +8,7 @@ use App\Models\WasteRequest;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -25,7 +26,7 @@ class User extends Authenticatable
     ];
 
     // proof_path stays server-side only; the file is served through an admin-only route
-    protected $hidden = ['password', 'remember_token', 'proof_path'];
+    protected $hidden = ['password', 'remember_token', 'proof_path', 'residency_proof_exists'];
 
     protected $appends = ['has_proof'];
 
@@ -44,6 +45,7 @@ class User extends Authenticatable
     public function alerts()        { return $this->hasMany(Alert::class); }
     public function notifications() { return $this->hasMany(Notification::class); }
     public function verifier()      { return $this->belongsTo(User::class, 'verified_by'); }
+    public function residencyProof() { return $this->hasOne(ResidencyProof::class); }
 
     // Helpers
     public function getFullNameAttribute() {
@@ -51,6 +53,11 @@ class User extends Authenticatable
     }
 
     public function getHasProofAttribute(): bool {
-        return !empty($this->proof_path);
+        if ($this->proof_path) {
+            return Storage::disk('local')->exists($this->proof_path);
+        }
+
+        return $this->residency_proof_exists
+            ?? ($this->proof_submitted_at !== null && $this->residencyProof()->exists());
     }
 }
