@@ -129,7 +129,7 @@ async function handleLogin() {
     const redirect = new URLSearchParams(window.location.search).get('redirect')
     router.push(redirect || (data.user.role === 'admin' ? '/admin' : '/portal'))
   } catch (err) {
-    apiError.value = err.response?.data?.message || 'Invalid email or password.'
+    apiError.value = err.response?.data?.message || 'Unable to reach the server. Please try again.'
   } finally {
     loading.value = false
   }

@@ -23,8 +23,13 @@ class DashboardController extends Controller
             'pending_incidents'=> Incident::where('status', 'pending')->count(),
         ];
 
-        // Incidents per month (last 6 months)
-        $incidentsPerMonth = Incident::selectRaw('MONTH(created_at) as month, COUNT(*) as count')
+        $monthExpression = match ((new Incident)->getConnection()->getDriverName()) {
+            'pgsql' => 'CAST(EXTRACT(MONTH FROM created_at) AS INTEGER)',
+            'sqlite' => "CAST(strftime('%m', created_at) AS INTEGER)",
+            default => 'MONTH(created_at)',
+        };
+
+        $incidentsPerMonth = Incident::selectRaw("$monthExpression as month, COUNT(*) as count")
             ->whereYear('created_at', now()->year)
             ->groupBy('month')
             ->orderBy('month')
