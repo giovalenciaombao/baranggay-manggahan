@@ -51,7 +51,7 @@ class RegistrationEmail
     {
         $mailer = config('mail.default');
         if (app()->isProduction() && !in_array($mailer, ['smtp', 'brevo'], true)) {
-            logger()->warning('Registration code not sent: a delivery mailer is not configured.');
+            $this->logDeliveryFailure('A delivery mailer is not configured. Set MAIL_MAILER to brevo or smtp.');
             return false;
         }
 
@@ -60,14 +60,23 @@ class RegistrationEmail
             return Mail::raw($body, fn (Message $message) => $message
                 ->to($user->email)->subject('Barangay Manggahan Email Verification')) !== null;
         } catch (Throwable $exception) {
-            logger()->warning('Registration code delivery failed.', [
-                'user_id' => $user->id,
-                'mailer' => $mailer,
-                'error' => $mailer === 'brevo' && $exception instanceof TransportException
-                    ? $exception->getMessage()
-                    : $exception::class,
-            ]);
+            $reason = $mailer === 'brevo' && $exception instanceof TransportException
+                ? $exception->getMessage()
+                : $exception::class;
+            $this->logDeliveryFailure($reason);
             return false;
         }
+    }
+
+    private function logDeliveryFailure(string $reason): void
+    {
+        $message = 'Registration code delivery failed [' . config('mail.default') . ']: ' . $reason;
+
+        if (app()->isProduction()) {
+            error_log($message);
+            return;
+        }
+
+        logger()->warning($message);
     }
 }
