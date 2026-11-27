@@ -166,9 +166,6 @@
             <UserPlusIcon class="w-4 h-4" />
             Create account
           </AppButton>
-          <AppButton v-if="verification" type="button" variant="secondary" class="mt-2 w-full" @click="verificationOpen = true">
-            Enter verification code
-          </AppButton>
         </form>
 
         <!-- Divider -->
@@ -197,23 +194,6 @@
 
       </div>
     </div>
-    <AppModal v-model="verificationOpen" title="Verify your email" size="sm">
-      <form class="space-y-3" @submit.prevent="verifyEmail">
-        <p class="text-sm text-gray-700">
-          Enter the six-digit code for <strong class="break-all">{{ verification?.email }}</strong>.
-        </p>
-        <p v-if="verificationNotice" class="text-sm text-gray-600" role="status">{{ verificationNotice }}</p>
-        <p v-if="verificationError" class="text-sm text-red-700" role="alert">{{ verificationError }}</p>
-        <AppInput v-model="code" label="Verification code" inputmode="numeric"
-          autocomplete="one-time-code" maxlength="6" required />
-        <AppButton type="submit" class="w-full" :loading="verifying" :disabled="resending">
-          Verify and submit application
-        </AppButton>
-        <AppButton type="button" variant="ghost" class="w-full" :loading="resending" :disabled="verifying" @click="resendCode">
-          Resend code
-        </AppButton>
-      </form>
-    </AppModal>
   </div>
 </template>
 
@@ -234,7 +214,6 @@ import {
 import { useAuthStore } from '@/stores/auth'
 import AppInput from '@/components/common/AppInput.vue'
 import AppButton from '@/components/common/AppButton.vue'
-import AppModal from '@/components/common/AppModal.vue'
 import GoogleIcon from '@/components/common/GoogleIcon.vue'
 import PrivacyConsent from '@/components/common/PrivacyConsent.vue'
 import { useFormDraft } from '@/composables/useFormDraft'
@@ -250,34 +229,6 @@ const loading      = ref(false)
 const showPassword = ref(false)
 const showConfirm  = ref(false)
 const apiError     = ref('')
-const verificationStorageKey = 'manggahan:registration-verification'
-const verification = ref(readVerification())
-const verificationOpen = ref(Boolean(verification.value))
-const code = ref('')
-const verifying = ref(false)
-const resending = ref(false)
-const verificationNotice = ref('')
-const verificationError = ref('')
-
-function readVerification() {
-  try {
-    const saved = JSON.parse(sessionStorage.getItem(verificationStorageKey))
-    if (typeof saved?.token === 'string' && typeof saved?.email === 'string') return saved
-  } catch {
-    // Verification also works without browser storage.
-  }
-  return null
-}
-
-function saveVerification(challenge) {
-  verification.value = challenge
-  try {
-    if (challenge) sessionStorage.setItem(verificationStorageKey, JSON.stringify(challenge))
-    else sessionStorage.removeItem(verificationStorageKey)
-  } catch {
-    // Browser storage may be disabled.
-  }
-}
 
 const proofFile    = ref(null)
 const proofPreview = ref('')
@@ -369,20 +320,9 @@ async function handleRegister() {
     fd.append('proof', proofFile.value)
     fd.append('privacy_consent', consent.value ? '1' : '0')
 
-    const result = await authStore.register(fd)
-    if (result.verification_required) {
-      saveVerification({ token: result.verification_token, email: fd.get('email') })
-      code.value = ''
-      verificationNotice.value = result.code_sent
-        ? 'Check your inbox and spam folder. The code expires in 10 minutes.'
-        : 'If you already received a code, enter it here.'
-      verificationError.value = result.code_sent === false
-        ? 'The email service could not send the code. Try Resend code in one minute.'
-        : ''
-      verificationOpen.value = true
-      return
-    }
-    finishRegistration()
+    await authStore.register(fd)
+    clearDraft()
+    router.push('/pending-approval')
   } catch (err) {
     const serverErrors = err.response?.data?.errors
     if (serverErrors) {
@@ -394,48 +334,6 @@ async function handleRegister() {
     apiError.value = err.response?.data?.message || 'Registration failed. Please try again.'
   } finally {
     loading.value = false
-  }
-}
-
-function finishRegistration() {
-  clearDraft()
-  saveVerification(null)
-  verificationOpen.value = false
-  router.push('/pending-approval')
-}
-
-async function verifyEmail() {
-  if (verifying.value || resending.value || !verification.value) return
-  if (!/^\d{6}$/.test(code.value)) {
-    verificationError.value = 'Enter all six digits from your email.'
-    return
-  }
-
-  verifying.value = true
-  verificationError.value = ''
-  try {
-    await api.post('/auth/register/verify', { token: verification.value.token, code: code.value })
-    finishRegistration()
-  } catch (error) {
-    verificationError.value = error.response?.data?.message || 'Could not verify your email. Try again.'
-  } finally {
-    verifying.value = false
-  }
-}
-
-async function resendCode() {
-  if (verifying.value || resending.value || !verification.value) return
-  resending.value = true
-  verificationError.value = ''
-  verificationNotice.value = ''
-  try {
-    const { data } = await api.post('/auth/register/resend', { token: verification.value.token })
-    code.value = ''
-    verificationNotice.value = data.message
-  } catch (error) {
-    verificationError.value = error.response?.data?.message || 'Could not resend the code. Try again.'
-  } finally {
-    resending.value = false
   }
 }
 

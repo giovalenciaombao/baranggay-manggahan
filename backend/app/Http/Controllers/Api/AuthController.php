@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Services\RegistrationEmail;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -15,7 +14,7 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function register(Request $request, RegistrationEmail $registrationEmail)
+    public function register(Request $request)
     {
         $request->validate([
             'first_name'      => 'required|string|max:255',
@@ -35,7 +34,7 @@ class AuthController extends Controller
         ]);
 
         try {
-            [$user, $token, $code] = $this->createResident($request, $registrationEmail);
+            $user = $this->createResident($request);
         } catch (UniqueConstraintViolationException $exception) {
             $existingUser = User::where('email', $request->email)->first();
             if (!$existingUser) {
@@ -46,35 +45,25 @@ class AuthController extends Controller
                 && $existingUser->status === 'pending'
                 && $existingUser->has_proof
                 && Hash::check($request->password, $existingUser->password)) {
-                $challenge = DB::transaction(function () use ($existingUser, $registrationEmail) {
-                    $verification = $existingUser->registrationVerification()->lockForUpdate()->first();
-                    return $verification ? $registrationEmail->open($existingUser) : null;
-                });
-                if (!$challenge) {
-                    return response()->json([
-                        'message' => 'Your registration is already submitted and awaiting admin approval.',
-                    ]);
-                }
-
-                $user = $existingUser;
-                [$token, $code] = $challenge;
-            } else {
-                throw ValidationException::withMessages([
-                    'email' => 'An account already exists for this email. Try signing in with the original method.',
+                return response()->json([
+                    'message' => 'Your registration is already submitted and awaiting admin approval.',
                 ]);
             }
+
+            throw ValidationException::withMessages([
+                'email' => 'An account already exists for this email. Try signing in with the original method.',
+            ]);
         }
 
         return response()->json([
-            'verification_required' => true,
-            'verification_token' => $token,
-            'code_sent' => $code === null ? null : $registrationEmail->sendCode($user, $code),
-        ], 202);
+            'message' => 'Registration successful. Please wait for admin approval.',
+            'user'    => $user,
+        ], 201);
     }
 
-    private function createResident(Request $request, RegistrationEmail $registrationEmail): array
+    private function createResident(Request $request): User
     {
-        return DB::transaction(function () use ($request, $registrationEmail) {
+        return DB::transaction(function () use ($request) {
             $user = User::create([
                 'first_name'         => $request->first_name,
                 'last_name'          => $request->last_name,
@@ -91,7 +80,7 @@ class AuthController extends Controller
 
             $this->storeProof($user, $request->file('proof'));
 
-            return [$user, ...$registrationEmail->open($user)];
+            return $user;
         });
     }
 
@@ -157,12 +146,6 @@ class AuthController extends Controller
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Invalid credentials.'], 401);
-        }
-
-        if ($user->registrationVerification()->exists()) {
-            return response()->json([
-                'message' => 'Verify your email from the registration page before signing in.',
-            ], 403);
         }
 
         if ($user->status === 'pending' && $user->has_proof) {

@@ -5,8 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Http\Client\Request;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -20,49 +19,37 @@ class RegistrationRetryTest extends TestCase
         $email = 'retry@example.test';
         $password = 'test-registration-password';
 
-        $this->register($email, $password)->assertAccepted()->assertJsonPath('code_sent', false);
-        $retry = $this->register($email, $password)->assertAccepted()->assertJsonPath('code_sent', null);
+        $this->register($email, $password)->assertCreated();
+        $this->register($email, $password)->assertOk()
+            ->assertJsonPath('message', 'Your registration is already submitted and awaiting admin approval.');
         $this->register($email, 'different-test-password')->assertUnprocessable()->assertJsonValidationErrors('email');
-        $token = $retry->json('verification_token');
-        $this->postJson('/api/auth/register/resend', ['token' => $token])->assertTooManyRequests();
+        $this->register('another@example.test', $password)->assertCreated();
 
-        $this->travel(61)->seconds();
-        config([
-            'mail.default' => 'brevo',
-            'mail.mailers.brevo.key' => 'test-api-key',
-            'mail.from.address' => 'sender@example.test',
+        $this->assertSame(2, User::count());
+        $this->assertSame(1, User::where('email', $email)->count());
+    }
+
+    public function test_application_with_a_previous_otp_is_now_available_for_admin_approval(): void
+    {
+        config(['mail.default' => 'missing-test-mailer']);
+        $response = $this->register('pending@example.test', 'test-registration-password')
+            ->assertCreated()->assertJsonPath('user.status', 'pending');
+        $residentId = $response->json('user.id');
+        DB::table('registration_verifications')->insert([
+            'user_id' => $residentId,
+            'token_hash' => str_repeat('a', 64),
+            'code_hash' => 'old-unused-challenge',
+            'expires_at' => now(),
         ]);
-        Http::fake(['https://api.brevo.com/v3/smtp/email' => Http::response(['messageId' => 'test-id'], 201)]);
-        $this->postJson('/api/auth/register/resend', ['token' => $token])->assertOk();
-        Http::assertSent(fn (Request $request) => $request->hasHeader('api-key', 'test-api-key')
-            && $request['to'][0]['email'] === $email
-            && $request['sender']['email'] === 'sender@example.test'
-            && $request['subject'] === 'Barangay Manggahan Email Verification');
-        $body = Http::recorded()->first()[0]['textContent'];
-        config(['mail.default' => 'array']);
-        preg_match('/\b[0-9]{6}\b/', $body, $matches);
-        $wrong = $matches[0] === '111111' ? '222222' : '111111';
-        $this->postJson('/api/auth/register/verify', ['token' => $token, 'code' => $wrong])->assertUnprocessable();
-        $this->postJson('/api/auth/login', compact('email', 'password'))->assertForbidden();
-
-        $resident = User::where('email', $email)->firstOrFail();
         Sanctum::actingAs(User::create([
             'first_name' => 'Test', 'last_name' => 'Admin', 'email' => 'admin@example.test',
             'password' => 'test-admin-password', 'role' => 'admin', 'status' => 'active',
         ]));
-        $this->getJson('/api/admin/users')->assertJsonCount(0, 'users');
-        $this->putJson("/api/admin/users/{$resident->id}/status", ['status' => 'active'])->assertUnprocessable();
-        $this->postJson('/api/auth/register/verify', ['token' => $token, 'code' => $matches[0]])->assertOk();
-        $this->getJson('/api/admin/users')->assertJsonPath('users.0.id', $resident->id);
-        $this->postJson('/api/auth/register/verify', ['token' => $token, 'code' => $matches[0]])->assertUnprocessable();
 
-        config(['mail.default' => 'missing-test-mailer']);
-        $this->putJson("/api/admin/users/{$resident->id}/status", ['status' => 'active'])
+        $this->getJson('/api/admin/users')->assertJsonPath('users.0.id', $residentId);
+        $this->putJson("/api/admin/users/{$residentId}/status", ['status' => 'active'])
             ->assertOk()->assertJsonPath('user.status', 'active');
-        $this->assertDatabaseHas('notifications', ['user_id' => $resident->id, 'title' => 'Account Approved']);
-
-        $this->assertSame(2, User::count());
-        $this->assertSame(1, User::where('email', $email)->count());
+        $this->assertDatabaseHas('notifications', ['user_id' => $residentId, 'title' => 'Account Approved']);
     }
 
     private function register(string $email, string $password)

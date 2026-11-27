@@ -48,10 +48,6 @@ class GoogleAuthController extends Controller
                 return redirect($this->frontendRedirect($platform, '/auth/callback?error=admin_use_password'));
             }
 
-            if ($user->registrationVerification()->exists()) {
-                return redirect($this->frontendRedirect($platform, '/auth/callback?error=email_verification_required'));
-            }
-
             if (!$user->google_id) {
                 $user->update(['google_id' => $googleUser->getId()]);
             }

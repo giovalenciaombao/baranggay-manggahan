@@ -16,7 +16,6 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $users = User::withExists('residencyProof')->where('role', 'resident')
-            ->whereDoesntHave('registrationVerification')
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->search, fn($q) => $q->where(function($q) use ($request) {
                 $q->where('first_name', 'like', "%{$request->search}%")
@@ -40,10 +39,6 @@ class UserController extends Controller
 
         if ($user->role !== 'resident') {
             return response()->json(['message' => 'Only resident accounts can be managed here.'], 403);
-        }
-
-        if ($user->registrationVerification()->exists()) {
-            return response()->json(['message' => 'This resident must verify their email before review.'], 422);
         }
 
         if ($user->status === 'pending'
@@ -105,7 +100,6 @@ class UserController extends Controller
     // Admin-only: stream the proof file (private disk)
     public function proof(User $user)
     {
-        abort_if($user->registrationVerification()->exists(), 404);
         $headers = ['Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff'];
 
         if ($proof = $user->residencyProof()->first()) {
