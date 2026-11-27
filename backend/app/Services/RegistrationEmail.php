@@ -8,6 +8,7 @@ use Illuminate\Mail\Message;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Symfony\Component\Mailer\Exception\TransportException;
 use Throwable;
 
 class RegistrationEmail
@@ -48,8 +49,9 @@ class RegistrationEmail
 
     public function sendCode(User $user, string $code): bool
     {
-        if (app()->isProduction() && config('mail.default') !== 'smtp') {
-            logger()->warning('Registration code not sent: SMTP is not configured.');
+        $mailer = config('mail.default');
+        if (app()->isProduction() && !in_array($mailer, ['smtp', 'brevo'], true)) {
+            logger()->warning('Registration code not sent: a delivery mailer is not configured.');
             return false;
         }
 
@@ -60,7 +62,10 @@ class RegistrationEmail
         } catch (Throwable $exception) {
             logger()->warning('Registration code delivery failed.', [
                 'user_id' => $user->id,
-                'exception' => $exception::class,
+                'mailer' => $mailer,
+                'error' => $mailer === 'brevo' && $exception instanceof TransportException
+                    ? $exception->getMessage()
+                    : $exception::class,
             ]);
             return false;
         }

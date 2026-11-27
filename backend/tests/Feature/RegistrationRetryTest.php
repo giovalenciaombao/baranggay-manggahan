@@ -5,7 +5,8 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -26,9 +27,19 @@ class RegistrationRetryTest extends TestCase
         $this->postJson('/api/auth/register/resend', ['token' => $token])->assertTooManyRequests();
 
         $this->travel(61)->seconds();
-        config(['mail.default' => 'array']);
+        config([
+            'mail.default' => 'brevo',
+            'mail.mailers.brevo.key' => 'test-api-key',
+            'mail.from.address' => 'sender@example.test',
+        ]);
+        Http::fake(['https://api.brevo.com/v3/smtp/email' => Http::response(['messageId' => 'test-id'], 201)]);
         $this->postJson('/api/auth/register/resend', ['token' => $token])->assertOk();
-        $body = Mail::getSymfonyTransport()->messages()->first()->getOriginalMessage()->getTextBody();
+        Http::assertSent(fn (Request $request) => $request->hasHeader('api-key', 'test-api-key')
+            && $request['to'][0]['email'] === $email
+            && $request['sender']['email'] === 'sender@example.test'
+            && $request['subject'] === 'Barangay Manggahan Email Verification');
+        $body = Http::recorded()->first()[0]['textContent'];
+        config(['mail.default' => 'array']);
         preg_match('/\b[0-9]{6}\b/', $body, $matches);
         $wrong = $matches[0] === '111111' ? '222222' : '111111';
         $this->postJson('/api/auth/register/verify', ['token' => $token, 'code' => $wrong])->assertUnprocessable();
