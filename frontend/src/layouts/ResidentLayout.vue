@@ -32,8 +32,9 @@
       <!-- User info + logout -->
       <div class="border-t border-white/10 p-4">
         <div class="flex items-center gap-3 mb-3">
-          <div class="w-9 h-9 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-            <span class="text-white text-sm font-medium">{{ initials }}</span>
+          <div class="w-9 h-9 rounded-full bg-primary flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <img v-if="authStore.profilePhotoUrl" :src="authStore.profilePhotoUrl" alt="" class="h-full w-full object-cover" />
+            <span v-else class="text-white text-sm font-medium">{{ initials }}</span>
           </div>
           <div class="min-w-0">
             <p class="text-white text-sm font-medium truncate">{{ fullName }}</p>
@@ -269,6 +270,7 @@ async function handleLogout() {
 }
 
 onMounted(async () => {
+  void authStore.loadProfilePhoto()
   await fetchNotifications()
   document.addEventListener('click', handleClickOutside)
 })

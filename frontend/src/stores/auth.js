@@ -8,6 +8,9 @@ export const useAuthStore = defineStore('auth', () => {
   const user    = ref(null)
   const token   = ref(localStorage.getItem('auth_token') || null)
   const checked = ref(false)
+  const profilePhotoUrl = ref('')
+  const profilePhotoLoading = ref(false)
+  const profilePhotoLoadError = ref('')
 
   const isAuthenticated = computed(() => !!token.value && !!user.value)
   const isAdmin         = computed(() => user.value?.role === 'admin')
@@ -71,6 +74,37 @@ export const useAuthStore = defineStore('auth', () => {
     return data
   }
 
+  function setProfilePhoto(blob = null) {
+    if (profilePhotoUrl.value) URL.revokeObjectURL(profilePhotoUrl.value)
+    profilePhotoUrl.value = blob ? URL.createObjectURL(blob) : ''
+  }
+
+  async function loadProfilePhoto() {
+    if (profilePhotoLoading.value) return
+    const sessionToken = token.value
+    profilePhotoLoading.value = true
+    profilePhotoLoadError.value = ''
+    try {
+      const response = await api.get('/auth/profile/photo', { responseType: 'blob' })
+      if (token.value === sessionToken && response.status === 200) setProfilePhoto(response.data)
+    } catch {
+      if (token.value === sessionToken) profilePhotoLoadError.value = 'Could not load your profile photo.'
+    } finally {
+      if (token.value === sessionToken) profilePhotoLoading.value = false
+    }
+  }
+
+  async function updateProfilePhoto(file) {
+    const sessionToken = token.value
+    const formData = new FormData()
+    formData.append('photo', file)
+    await api.post('/auth/profile/photo', formData, multipart)
+    if (token.value === sessionToken) {
+      setProfilePhoto(file)
+      profilePhotoLoadError.value = ''
+    }
+  }
+
   function setAuth(newToken, newUser) {
     token.value = newToken
     user.value  = newUser
@@ -78,6 +112,9 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function clearAuth() {
+    setProfilePhoto()
+    profilePhotoLoading.value = false
+    profilePhotoLoadError.value = ''
     token.value = null
     user.value  = null
     localStorage.removeItem('auth_token')
@@ -85,6 +122,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user, token, checked,
+    profilePhotoUrl, profilePhotoLoading, profilePhotoLoadError,
+    loadProfilePhoto, updateProfilePhoto,
     isAuthenticated, isAdmin, isResident, isApproved,
     login, loginWithToken, register, uploadProof, logout, checkAuth, updateProfile, updatePassword,
     setAuth, clearAuth,

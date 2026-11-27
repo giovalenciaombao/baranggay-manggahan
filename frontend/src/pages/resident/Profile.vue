@@ -9,7 +9,7 @@
     <!-- Avatar + name -->
     <div class="card rounded-2xl p-5 flex flex-wrap items-center gap-4">
       <div class="w-16 h-16 rounded-full bg-primary flex items-center justify-center flex-shrink-0 overflow-hidden">
-        <img v-if="photoUrl" :src="photoUrl" alt="Your profile photo" class="h-full w-full object-cover" />
+        <img v-if="authStore.profilePhotoUrl" :src="authStore.profilePhotoUrl" alt="Your profile photo" class="h-full w-full object-cover" />
         <span v-else class="text-xl font-semibold text-primary-light">{{ initials }}</span>
       </div>
       <div class="min-w-0 flex-1">
@@ -17,12 +17,12 @@
         <p class="break-words text-sm text-gray-500">{{ user?.email }}</p>
         <AppBadge variant="success" class="mt-1">Active</AppBadge>
       </div>
-      <AppButton type="button" variant="secondary" :loading="photoUploading" :disabled="photoLoading" @click="photoInput?.click()">
+      <AppButton type="button" variant="secondary" :loading="photoUploading" :disabled="authStore.profilePhotoLoading" @click="photoInput?.click()">
         <CameraIcon class="h-4 w-4" aria-hidden="true" />
         Change photo
       </AppButton>
       <input ref="photoInput" type="file" accept="image/jpeg,image/png,image/webp" class="hidden" @change="uploadPhoto" />
-      <p v-if="photoError" class="w-full text-sm text-red-600" role="alert">{{ photoError }}</p>
+      <p v-if="photoError || authStore.profilePhotoLoadError" class="w-full text-sm text-red-600" role="alert">{{ photoError || authStore.profilePhotoLoadError }}</p>
     </div>
 
     <!-- Edit form -->
@@ -160,7 +160,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useToast } from 'vue-toastification'
 import {
   CameraIcon,
@@ -169,7 +169,6 @@ import {
   EyeIcon,
   EyeSlashIcon,
 } from '@heroicons/vue/24/outline'
-import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import AppInput from '@/components/common/AppInput.vue'
 import AppButton from '@/components/common/AppButton.vue'
@@ -180,33 +179,8 @@ const toast     = useToast()
 const user      = computed(() => authStore.user)
 
 const photoInput = ref(null)
-const photoUrl = ref('')
 const photoError = ref('')
-const photoLoading = ref(true)
 const photoUploading = ref(false)
-let disposed = false
-
-function displayPhoto(blob) {
-  if (disposed) return
-  if (photoUrl.value) URL.revokeObjectURL(photoUrl.value)
-  photoUrl.value = URL.createObjectURL(blob)
-}
-
-onMounted(async () => {
-  try {
-    const response = await api.get('/auth/profile/photo', { responseType: 'blob' })
-    if (response.status === 200) displayPhoto(response.data)
-  } catch {
-    photoError.value = 'Could not load your profile photo.'
-  } finally {
-    photoLoading.value = false
-  }
-})
-
-onBeforeUnmount(() => {
-  disposed = true
-  if (photoUrl.value) URL.revokeObjectURL(photoUrl.value)
-})
 
 async function uploadPhoto(event) {
   const file = event.target.files?.[0]
@@ -219,13 +193,10 @@ async function uploadPhoto(event) {
     return
   }
 
-  const formData = new FormData()
-  formData.append('photo', file)
   photoUploading.value = true
   try {
-    await api.post('/auth/profile/photo', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
-    displayPhoto(file)
-    if (!disposed) toast.success('Profile photo updated.')
+    await authStore.updateProfilePhoto(file)
+    toast.success('Profile photo updated.')
   } catch (error) {
     photoError.value = error.response?.data?.errors?.photo?.[0] || 'Could not update your profile photo. Try again.'
   } finally {
