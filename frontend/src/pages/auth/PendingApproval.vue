@@ -78,10 +78,11 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       </div>
-      <h2 class="font-display text-xl font-semibold text-primary-dark">Account Pending Approval</h2>
-      <p class="text-sm text-gray-500 max-w-sm">
-        Your proof of residency is under review by the barangay admin.
-        Once your account is approved, you can sign in.
+      <h2 class="font-display text-xl font-semibold text-primary-dark">
+        {{ registrationSubmitted ? 'Application submitted' : 'Account Pending Approval' }}
+      </h2>
+      <p class="text-sm text-gray-600 max-w-sm" role="status">
+        Your account is pending approval. A barangay admin will review your proof of residency before you can sign in.
       </p>
     </template>
 
@@ -110,6 +111,7 @@ const MAX_PROOF_BYTES = 5 * 1024 * 1024
 const ALLOWED_TYPES   = ['image/jpeg', 'image/png', 'application/pdf']
 
 const booting  = ref(true)
+const registrationSubmitted = ref(window.history.state?.registrationSubmitted === true)
 const loading  = ref(false)
 const apiError = ref('')
 

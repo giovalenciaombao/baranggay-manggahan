@@ -19,7 +19,10 @@ class RegistrationRetryTest extends TestCase
         $email = 'retry@example.test';
         $password = 'test-registration-password';
 
-        $this->register($email, $password)->assertCreated();
+        $this->register($email, $password)->assertCreated()
+            ->assertJsonPath('user.status', 'pending');
+        $this->postJson('/api/auth/login', compact('email', 'password'))->assertForbidden()
+            ->assertJsonPath('message', 'Your account is pending approval.');
         $this->register($email, $password)->assertOk()
             ->assertJsonPath('message', 'Your registration is already submitted and awaiting admin approval.');
         $this->register($email, 'different-test-password')->assertUnprocessable()->assertJsonValidationErrors('email');

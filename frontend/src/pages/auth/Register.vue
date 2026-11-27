@@ -322,7 +322,11 @@ async function handleRegister() {
 
     await authStore.register(fd)
     clearDraft()
-    router.push('/pending-approval')
+    toast.success('Application submitted for admin approval.')
+    await router.replace({
+      name: 'pending-approval',
+      state: { registrationSubmitted: true },
+    })
   } catch (err) {
     const serverErrors = err.response?.data?.errors
     if (serverErrors) {
