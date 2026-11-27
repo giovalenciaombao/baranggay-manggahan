@@ -13,9 +13,12 @@ use App\Http\Controllers\Api\Admin\ReportController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\GoogleAuthController;
 use App\Http\Controllers\Api\ProfilePhotoController;
+use App\Http\Controllers\Api\RegistrationVerificationController;
 
 // --- Public Routes ---
-Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
+Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:5,1,registration');
+Route::post('/auth/register/verify', [RegistrationVerificationController::class, 'verify'])->middleware('throttle:10,1,registration-verify');
+Route::post('/auth/register/resend', [RegistrationVerificationController::class, 'resend'])->middleware('throttle:5,1,registration-resend');
 Route::post('/auth/login',    [AuthController::class, 'login'])->middleware('throttle:10,1');
 
 // Public alerts (visible on homepage)

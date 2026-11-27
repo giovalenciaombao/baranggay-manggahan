@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Services\AccountMail;
+use App\Services\RegistrationEmail;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -13,11 +13,9 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
-use function Illuminate\Support\defer;
-
 class AuthController extends Controller
 {
-    public function register(Request $request)
+    public function register(Request $request, RegistrationEmail $registrationEmail)
     {
         $request->validate([
             'first_name'      => 'required|string|max:255',
@@ -37,7 +35,7 @@ class AuthController extends Controller
         ]);
 
         try {
-            $user = $this->createResident($request);
+            [$user, $token, $code] = $this->createResident($request, $registrationEmail);
         } catch (UniqueConstraintViolationException $exception) {
             $existingUser = User::where('email', $request->email)->first();
             if (!$existingUser) {
@@ -48,32 +46,35 @@ class AuthController extends Controller
                 && $existingUser->status === 'pending'
                 && $existingUser->has_proof
                 && Hash::check($request->password, $existingUser->password)) {
-                return response()->json([
-                    'message' => 'Your registration is already submitted and awaiting admin approval.',
+                $challenge = DB::transaction(function () use ($existingUser, $registrationEmail) {
+                    $verification = $existingUser->registrationVerification()->lockForUpdate()->first();
+                    return $verification ? $registrationEmail->open($existingUser) : null;
+                });
+                if (!$challenge) {
+                    return response()->json([
+                        'message' => 'Your registration is already submitted and awaiting admin approval.',
+                    ]);
+                }
+
+                $user = $existingUser;
+                [$token, $code] = $challenge;
+            } else {
+                throw ValidationException::withMessages([
+                    'email' => 'An account already exists for this email. Try signing in with the original method.',
                 ]);
             }
-
-            throw ValidationException::withMessages([
-                'email' => 'An account already exists for this email. Try signing in with the original method.',
-            ]);
         }
 
-        // Email delivery runs after the registration response has been sent.
-        defer(fn () => rescue(fn () => AccountMail::send(
-            $user,
-            'Barangay Manggahan Registration Received',
-            'We received your registration. Please wait for a barangay administrator to review it.',
-        )));
-
         return response()->json([
-            'message' => 'Registration successful. Please wait for admin approval.',
-            'user'    => $user,
-        ], 201);
+            'verification_required' => true,
+            'verification_token' => $token,
+            'code_sent' => $code === null ? null : $registrationEmail->sendCode($user, $code),
+        ], 202);
     }
 
-    private function createResident(Request $request): User
+    private function createResident(Request $request, RegistrationEmail $registrationEmail): array
     {
-        return DB::transaction(function () use ($request) {
+        return DB::transaction(function () use ($request, $registrationEmail) {
             $user = User::create([
                 'first_name'         => $request->first_name,
                 'last_name'          => $request->last_name,
@@ -90,7 +91,7 @@ class AuthController extends Controller
 
             $this->storeProof($user, $request->file('proof'));
 
-            return $user;
+            return [$user, ...$registrationEmail->open($user)];
         });
     }
 
@@ -156,6 +157,12 @@ class AuthController extends Controller
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Invalid credentials.'], 401);
+        }
+
+        if ($user->registrationVerification()->exists()) {
+            return response()->json([
+                'message' => 'Verify your email from the registration page before signing in.',
+            ], 403);
         }
 
         if ($user->status === 'pending' && $user->has_proof) {

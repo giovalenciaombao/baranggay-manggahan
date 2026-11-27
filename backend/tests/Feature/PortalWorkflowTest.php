@@ -61,7 +61,7 @@ class PortalWorkflowTest extends TestCase
     public function test_registration_and_approval_send_email(): void
     {
         Storage::fake('local');
-        $this->post('/api/auth/register', [
+        $signup = $this->post('/api/auth/register', [
             'first_name' => 'Test',
             'last_name' => 'Resident',
             'email' => 'resident@example.test',
@@ -72,7 +72,14 @@ class PortalWorkflowTest extends TestCase
             'proof_type' => 'billing_statement',
             'proof' => UploadedFile::fake()->createWithContent('proof.pdf', "%PDF-1.4\n"),
             'privacy_consent' => '1',
-        ], ['Accept' => 'application/json'])->assertCreated();
+        ], ['Accept' => 'application/json'])->assertAccepted()->assertJsonPath('code_sent', true);
+
+        $otp = Mail::getSymfonyTransport()->messages()->first()->getOriginalMessage()->getTextBody();
+        preg_match('/\b[0-9]{6}\b/', $otp, $matches);
+        $this->postJson('/api/auth/register/verify', [
+            'token' => $signup->json('verification_token'),
+            'code' => $matches[0],
+        ])->assertOk();
 
         $resident = User::where('email', 'resident@example.test')->firstOrFail();
         Sanctum::actingAs($this->createActiveUser('admin'));
@@ -82,7 +89,7 @@ class PortalWorkflowTest extends TestCase
             ->map(fn ($mail) => $mail->getOriginalMessage()->getSubject())
             ->all();
 
-        $this->assertSame(['Barangay Manggahan Registration Received', 'Account Approved'], $subjects);
+        $this->assertSame(['Barangay Manggahan Email Verification', 'Barangay Manggahan Registration Received', 'Account Approved'], $subjects);
     }
 
     private function createActiveUser(string $role): User

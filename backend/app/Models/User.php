@@ -46,6 +46,7 @@ class User extends Authenticatable
     public function notifications() { return $this->hasMany(Notification::class); }
     public function verifier()      { return $this->belongsTo(User::class, 'verified_by'); }
     public function residencyProof() { return $this->hasOne(ResidencyProof::class); }
+    public function registrationVerification() { return $this->hasOne(RegistrationVerification::class); }
 
     // Helpers
     public function getFullNameAttribute() {

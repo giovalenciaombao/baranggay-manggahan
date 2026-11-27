@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Mail;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class RegistrationRetryTest extends TestCase
@@ -17,11 +19,31 @@ class RegistrationRetryTest extends TestCase
         $email = 'retry@example.test';
         $password = 'test-registration-password';
 
-        $this->register($email, $password)->assertCreated();
-        $this->register($email, $password)->assertOk()
-            ->assertJsonPath('message', 'Your registration is already submitted and awaiting admin approval.');
+        $this->register($email, $password)->assertAccepted()->assertJsonPath('code_sent', false);
+        $retry = $this->register($email, $password)->assertAccepted()->assertJsonPath('code_sent', null);
         $this->register($email, 'different-test-password')->assertUnprocessable()->assertJsonValidationErrors('email');
-        $this->register('another@example.test', $password)->assertCreated();
+        $token = $retry->json('verification_token');
+        $this->postJson('/api/auth/register/resend', ['token' => $token])->assertTooManyRequests();
+
+        $this->travel(61)->seconds();
+        config(['mail.default' => 'array']);
+        $this->postJson('/api/auth/register/resend', ['token' => $token])->assertOk();
+        $body = Mail::getSymfonyTransport()->messages()->first()->getOriginalMessage()->getTextBody();
+        preg_match('/\b[0-9]{6}\b/', $body, $matches);
+        $wrong = $matches[0] === '111111' ? '222222' : '111111';
+        $this->postJson('/api/auth/register/verify', ['token' => $token, 'code' => $wrong])->assertUnprocessable();
+        $this->postJson('/api/auth/login', compact('email', 'password'))->assertForbidden();
+
+        $resident = User::where('email', $email)->firstOrFail();
+        Sanctum::actingAs(User::create([
+            'first_name' => 'Test', 'last_name' => 'Admin', 'email' => 'admin@example.test',
+            'password' => 'test-admin-password', 'role' => 'admin', 'status' => 'active',
+        ]));
+        $this->getJson('/api/admin/users')->assertJsonCount(0, 'users');
+        $this->putJson("/api/admin/users/{$resident->id}/status", ['status' => 'active'])->assertUnprocessable();
+        $this->postJson('/api/auth/register/verify', ['token' => $token, 'code' => $matches[0]])->assertOk();
+        $this->getJson('/api/admin/users')->assertJsonPath('users.0.id', $resident->id);
+        $this->postJson('/api/auth/register/verify', ['token' => $token, 'code' => $matches[0]])->assertUnprocessable();
 
         $this->assertSame(2, User::count());
         $this->assertSame(1, User::where('email', $email)->count());

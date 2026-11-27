@@ -28,6 +28,7 @@ const errorMessages = {
   account_suspended:  'Your account has been suspended or rejected.',
   google_unverified:  'Your Google email is not verified. Please use a verified Google account.',
   admin_use_password: 'Staff accounts must sign in with email and password.',
+  email_verification_required: 'Finish email verification from the registration page before signing in.',
 }
 
 onMounted(async () => {

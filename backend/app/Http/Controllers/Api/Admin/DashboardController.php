@@ -19,7 +19,7 @@ class DashboardController extends Controller
             'total_incidents'  => Incident::count(),
             'total_appointments' => Appointment::count(),
             'active_alerts'    => Alert::count(),
-            'pending_users'    => User::where('status', 'pending')->count(),
+            'pending_users'    => User::where('status', 'pending')->whereDoesntHave('registrationVerification')->count(),
             'pending_incidents'=> Incident::where('status', 'pending')->count(),
         ];
 
@@ -42,6 +42,7 @@ class DashboardController extends Controller
 
         // Pending user approvals
         $pendingUsers = User::where('status', 'pending')
+            ->whereDoesntHave('registrationVerification')
             ->latest()
             ->take(5)
             ->get();
