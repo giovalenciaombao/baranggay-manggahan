@@ -16,13 +16,25 @@ class DemoAdminLoginTest extends TestCase
         $environment = \Illuminate\Support\Env::getRepository();
         $previousEmail = $environment->get('DEMO_ADMIN_EMAIL');
         $previousPassword = $environment->get('DEMO_ADMIN_PASSWORD');
+        $previousResetFlag = $environment->get('DEMO_ADMIN_RESET_PASSWORD');
         $environment->set('DEMO_ADMIN_EMAIL', $email);
         $environment->set('DEMO_ADMIN_PASSWORD', $password);
 
         try {
             $this->seed(\Database\Seeders\DemoAdminSeeder::class);
+            $oldToken = $this->postJson('/api/auth/login', compact('email', 'password'))->assertOk()->json('token');
+
+            $password = 'rotated-test-password-456';
+            $environment->set('DEMO_ADMIN_PASSWORD', $password);
+            $environment->set('DEMO_ADMIN_RESET_PASSWORD', 'true');
+            $this->seed(\Database\Seeders\DemoAdminSeeder::class);
+            $this->assertNull(\Laravel\Sanctum\PersonalAccessToken::findToken($oldToken));
         } finally {
-            foreach (['DEMO_ADMIN_EMAIL' => $previousEmail, 'DEMO_ADMIN_PASSWORD' => $previousPassword] as $key => $value) {
+            foreach ([
+                'DEMO_ADMIN_EMAIL' => $previousEmail,
+                'DEMO_ADMIN_PASSWORD' => $previousPassword,
+                'DEMO_ADMIN_RESET_PASSWORD' => $previousResetFlag,
+            ] as $key => $value) {
                 if ($value === null) {
                     $environment->clear($key);
                 } else {
