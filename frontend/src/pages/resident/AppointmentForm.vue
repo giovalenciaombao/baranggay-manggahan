@@ -12,7 +12,7 @@
       </div>
     </div>
 
-    <div class="card rounded-2xl p-5 space-y-4">
+    <form class="card rounded-2xl p-5 space-y-4" @submit.prevent="handleSubmit">
 
       <!-- API error -->
       <div v-if="apiError" class="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
@@ -28,48 +28,70 @@
         <select
           id="appointment-purpose"
           v-model="form.purpose"
+          required
           class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <option value="" disabled>Select a purpose</option>
-          <option v-for="(_, purpose) in purposes" :key="purpose" :value="purpose">{{ purpose }}</option>
+          <option v-for="purpose in purposes" :key="purpose" :value="purpose">
+            {{ purpose === 'Business Permit' ? 'Barangay Clearance for Business Permit' : purpose }}
+          </option>
         </select>
-        <p v-if="errors.purpose" class="text-xs text-red-500 mt-1">{{ errors.purpose }}</p>
       </div>
+
+      <fieldset v-if="fields.length" class="space-y-3 border-t border-gray-200 pt-3">
+        <legend class="pr-2 text-sm font-medium text-gray-700">Applicant information</legend>
+        <AppInput
+          v-for="field in fields"
+          :key="fieldKey(form.purpose, field)"
+          v-model="form[fieldKey(form.purpose, field)]"
+          :label="field.label"
+          :type="field.type"
+          :required="!field.optional"
+          :maxlength="255"
+          :min="field.type === 'number' ? 0 : undefined"
+          :error="fieldErrors[fieldKey(form.purpose, field)]"
+        />
+        <p v-if="form.purpose === 'Barangay Clearance'" class="text-sm text-gray-500">
+          Barangay staff will handle the signature and thumbmark during your visit.
+        </p>
+      </fieldset>
 
       <div v-if="form.purpose">
         <label for="appointment-details" class="block text-sm font-medium text-gray-600 mb-1">
-          Request details <span class="text-red-400">*</span>
+          {{ fields.length ? 'Additional notes (optional)' : 'Request details' }}
+          <span v-if="!fields.length" class="text-red-400">*</span>
         </label>
-        <p id="appointment-details-help" class="text-sm text-gray-500 mb-2">{{ purposes[form.purpose] }}</p>
+        <p v-if="requestPrompts[form.purpose]" id="appointment-details-help" class="text-sm text-gray-500 mb-2">
+          {{ requestPrompts[form.purpose] }}
+        </p>
         <textarea
           id="appointment-details"
           v-model="form.notes"
           rows="4"
-          required
-          :aria-invalid="Boolean(errors.notes)"
-          :aria-describedby="errors.notes ? 'appointment-details-help appointment-details-error' : 'appointment-details-help'"
+          :required="!fields.length"
+          :aria-invalid="Boolean(fieldErrors.notes)"
+          :aria-describedby="requestPrompts[form.purpose] ? 'appointment-details-help' : undefined"
           class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary resize-none"
         />
-        <p v-if="errors.notes" id="appointment-details-error" class="text-xs text-red-500 mt-1">{{ errors.notes }}</p>
+        <p v-if="fieldErrors.notes" class="text-xs text-red-500 mt-1">{{ fieldErrors.notes }}</p>
       </div>
 
       <AppButton
-        type="button"
+        type="submit"
         variant="primary"
         class="w-full"
         :loading="loading"
-        @click="handleSubmit"
       >
         <CalendarDaysIcon class="w-4 h-4" />
         Submit Appointment
       </AppButton>
 
-    </div>
+    </form>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import {
@@ -80,6 +102,7 @@ import {
 import api from '@/services/api'
 import { formatDate } from '@/utils/formatters'
 import AppButton from '@/components/common/AppButton.vue'
+import AppInput from '@/components/common/AppInput.vue'
 import { useFormDraft } from '@/composables/useFormDraft'
 
 const router = useRouter()
@@ -88,40 +111,109 @@ const toast  = useToast()
 const loading  = ref(false)
 const apiError = ref('')
 
-const purposes = {
+const requestPrompts = {
   'Barangay ID Renewal': 'Enter your current address and describe any information that needs to change on your ID.',
-  'Certificate of Residency': 'Enter your complete barangay address, how long you have lived there, and what you need the certificate for.',
   'Certificate of Indigency': 'Enter your complete barangay address and describe what you need the certificate for.',
-  'Business Permit': 'Enter the business name, address, and activity. Indicate whether this is a new application or a renewal.',
-  'Barangay Clearance': 'Enter your complete barangay address and what you need the clearance for.',
   'Complaint Filing': 'Briefly describe the complaint, including when and where the incident happened.',
   'Others': 'Specify the document or service you need and include the details staff need to prepare for your visit.',
 }
 
-const { form, clearDraft } = useFormDraft('appointment', {
-  purpose: '',
-  notes:   '',
-})
+const fullName = { label: 'Full name' }
+const address = { label: 'Complete residential address' }
+const documentUse = { label: 'Purpose of the document' }
+const requestedBy = { label: 'Requested by' }
 
-const errors = reactive({
-  purpose: '',
-  notes: '',
-})
-
-function validate() {
-  errors.purpose = !form.purpose ? 'Purpose is required.' : ''
-  errors.notes = form.purpose && !form.notes.trim() ? 'Enter the details for your request.' : ''
-  return Object.values(errors).every(e => !e)
+const documentFields = {
+  'Certificate of Residency': [fullName, address, documentUse],
+  'Barangay Clearance': [
+    { label: 'First name' },
+    { label: 'Middle name', optional: true },
+    { label: 'Surname' },
+    { label: 'Age', type: 'number' },
+    { label: 'Birth date', type: 'date' },
+    { label: 'Place of birth' },
+    address,
+    { label: 'Community tax certificate number', optional: true },
+    { label: 'Community tax certificate place of issue', optional: true },
+    { label: 'Community tax certificate date of issue', type: 'date', optional: true },
+    documentUse,
+  ],
+  'Certificate of Good Moral Character': [
+    fullName,
+    { label: 'Civil status' },
+    address,
+    requestedBy,
+    documentUse,
+  ],
+  'Certification for Business Closure': [
+    { label: 'Business name' },
+    { label: 'Owner’s full name' },
+    { label: 'Business address' },
+    { label: 'Month and year of closure', type: 'month' },
+  ],
+  'Certificate of Low Income': [fullName, address, requestedBy],
+  'Business Permit': [
+    { label: 'Pangalan (Full name)' },
+    { label: 'Hanapbuhay (Business or livelihood)' },
+    { label: 'Lugar (Business location)' },
+    { label: 'Uri (Business class)' },
+  ],
 }
 
+const purposes = [
+  'Barangay ID Renewal',
+  'Certificate of Residency',
+  'Certificate of Indigency',
+  'Certificate of Low Income',
+  'Certificate of Good Moral Character',
+  'Business Permit',
+  'Certification for Business Closure',
+  'Barangay Clearance',
+  'Complaint Filing',
+  'Others',
+]
+
+function fieldKey(purpose, field) {
+  return purpose + '/' + field.label
+}
+
+const documentDefaults = Object.fromEntries(
+  Object.entries(documentFields).flatMap(([purpose, fields]) =>
+    fields.map(field => [fieldKey(purpose, field), ''])
+  )
+)
+const { form, clearDraft } = useFormDraft('appointment', {
+  purpose: '',
+  notes: '',
+  ...documentDefaults,
+})
+const fields = computed(() => documentFields[form.purpose] ?? [])
+const fieldErrors = ref({})
+
 async function handleSubmit() {
-  if (loading.value || !validate()) return
+  if (loading.value || !purposes.includes(form.purpose)) return
+
+  const errors = {}
+  const details = []
+  for (const field of fields.value) {
+    const key = fieldKey(form.purpose, field)
+    const value = form[key].trim()
+    if (value) details.push(field.label + ': ' + value)
+    else if (!field.optional) errors[key] = 'This field is required.'
+  }
+
+  const notes = form.notes.trim()
+  if (!fields.value.length && !notes) errors.notes = 'Enter the details for your request.'
+  fieldErrors.value = errors
+  if (Object.keys(errors).length) return
+  if (notes) details.push(fields.value.length ? 'Additional notes: ' + notes : notes)
+
   loading.value  = true
   apiError.value = ''
   try {
     const { data } = await api.post('/appointments', {
       purpose: form.purpose,
-      notes: form.notes.trim(),
+      notes: details.join('\n'),
     })
     clearDraft()
     const { date, time } = data.appointment
