@@ -24,6 +24,10 @@ export function buildAppointmentDocument({ id, title, resident, schedule, notes 
 }
 
 const templates = {
+  'Certificate of Indigency': `Applicant name: __________________________________________________
+Complete residential address: ________________________________________________
+
+I am requesting a Certificate of Indigency for ____________________________________________.`,
   'Certificate of Residency': `This is to certify that ______________________________ is a resident of __________________________________________________________, Barangay Manggahan, Rodriguez (Montalban), Rizal.
 
 This certification is requested as proof of residency for ____________________________________________.`,
